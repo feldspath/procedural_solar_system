@@ -19,6 +19,8 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+out vec4 pos;
+
 void main()
 {
 	fragment.position = vec3(model * vec4(position,1.0));
@@ -27,6 +29,8 @@ void main()
 	fragment.uv = uv;
 	fragment.eye = vec3(inverse(view)*vec4(0,0,0,1.0));
 
+
 	gl_Position = projection * view * model * vec4(position, 1.0);
+  pos = gl_Position;
 }
 )";

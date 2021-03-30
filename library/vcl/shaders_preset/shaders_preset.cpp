@@ -31,6 +31,14 @@ namespace vcl
 			#include "planet/planet.frag.glsl";
 			return s;
 		}
+		if (shader_name == "post_processing_vertex") {
+			#include "post_processing/post_processing.vert.glsl";
+			return s;
+		}
+		if (shader_name == "post_processing_fragment") {
+			#include "post_processing/post_processing.frag.glsl";
+			return s;
+		}
 
 		error_vcl("Shader not found");
 		return "Error";

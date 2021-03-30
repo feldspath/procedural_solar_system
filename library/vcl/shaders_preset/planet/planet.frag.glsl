@@ -14,6 +14,8 @@ layout(location=0) out vec4 FragColor;
 
 uniform sampler2D image_texture;
 
+in vec4 pos;
+
 uniform vec3 light = vec3(1.0, 1.0, 1.0);
 
 uniform vec3 color = vec3(1.0, 1.0, 1.0); // Unifor color of the object
@@ -24,9 +26,11 @@ uniform float Ks = 0.4f;// Specular coefficient
 uniform float specular_exp = 64.0; // Specular exponent
 uniform bool use_texture = false;
 uniform bool texture_inverse_y = false;
+uniform mat4 view;
+uniform mat4 perspectiveInverse;
 
-uniform vec3 planetCenter;
-uniform float oceanLevel = 1.0f;
+uniform vec4 planetCenter = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+uniform float oceanLevel = 1.5f;
 
 uniform vec3 groundColor;
 
@@ -59,6 +63,10 @@ vec2 raySphere(vec3 center, float radius, vec3 rayOrigin, vec3 rayDir) {
   return vec2(-1.0, 0.0);
 }
 
+vec3 cameraDirection(vec2 screenPos) {
+  return normalize(vec3(perspectiveInverse * vec4(screenPos, -1.0f, 1.0f)));
+}
+
 void main() {
   vec3 newFragCol = groundColor;
   vec3 N = normalize(fragment.normal);
@@ -89,11 +97,18 @@ void main() {
 
   FragColor = vec4(color_shading, alpha * color_image_texture.a);
 
+
+
+
+
+
+
+  vec3 direction = cameraDirection(vec2(gl_FragCoord.x * 2 / 1280.0, gl_FragCoord.y * 2 / 1024.0) - 1);
   float depth = LinearizeDepth(gl_FragCoord.z);
-  vec2 hitInfo = raySphere(planetCenter, oceanLevel, fragment.eye, normalize(fragment.position - fragment.eye));
+  vec2 hitInfo = raySphere(vec3(view * planetCenter), oceanLevel, vec3(0.0, 0.0, 0.0), direction);
   float dstToOcean = hitInfo.x;
   float dstThroughOcean = hitInfo.y;
-  float oceanViewDepth = min(dstThroughOcean, depth - dstToOcean);
+  float oceanViewDepth = min(dstThroughOcean, length(vec3(view * vec4(fragment.position, 1.0f))) - dstToOcean);
   if (dstToOcean > 0 && oceanViewDepth > 0) {
     float alpha = 1 - exp(-5*oceanViewDepth);
     FragColor = FragColor *(1-alpha) + vec4(0.0, 0.0, 1.0, 1.0) * alpha;

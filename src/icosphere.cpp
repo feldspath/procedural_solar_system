@@ -20,7 +20,7 @@ static void generateFaceVertex(vec3 v0, vec3 v1, vec3 v2, int division, vcl::buf
 				//vertex
 				double kx = (double)i / (division + 1);
 				vec3 vertex = v0 + kx * (v1 - v0) + ky * (v2 - v0);
-				vertex.normalize();
+				vertex = normalize(vertex);
 				positions[count++] = vertex;
 			}
 			connectivity.push_back({ count - 1, lastVertices[j + 1], lastVertices[j] });
