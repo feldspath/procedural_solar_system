@@ -44,11 +44,8 @@ const unsigned int SCR_HEIGHT = 1024;
 
 Planet planet;
 perlin_noise_parameters parameters;
-GLuint planet_post_shader;
 
-GLuint framebuffer, textureColorbuffer;
-GLuint rbo;
-GLuint planet_shader;
+PostProcessing waterPostProc;
 
 
 int main(int, char* argv[])
@@ -77,12 +74,11 @@ int main(int, char* argv[])
 		scene.light = scene.camera.position();
 		user.fps_record.update();
 
-		renderToFrameBuffer(framebuffer);
+		waterPostProc.startRenderToFrameBuffer();
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		display_scene();
-		
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		waterPostProc.stopRenderToFrameBuffer();
 
 		imgui_create_frame();
 		if(user.fps_record.event) {
@@ -92,11 +88,10 @@ int main(int, char* argv[])
 
 		ImGui::Begin("GUI",NULL,ImGuiWindowFlags_AlwaysAutoResize);
 		user.cursor_on_gui = ImGui::IsAnyWindowFocused();
-
 		
 		if(user.gui.display_frame) draw(user.global_frame, scene);
 
-		renderColorbuffer(textureColorbuffer, rbo, scene.camera, planet_post_shader);
+		waterPostProc.renderColorbuffer(scene.camera);
 		//display_scene();
 		
 		display_interface();
@@ -120,21 +115,16 @@ void initialize_data()
 	GLuint const shader_mesh = opengl_create_shader_program(opengl_shader_preset("mesh_vertex"), opengl_shader_preset("mesh_fragment"));
 	GLuint const shader_uniform_color = opengl_create_shader_program(opengl_shader_preset("single_color_vertex"), opengl_shader_preset("single_color_fragment"));
 	GLuint const shader_post_processing = opengl_create_shader_program(opengl_shader_preset("post_processing_vertex"), opengl_shader_preset("post_processing_fragment"));
-	planet_shader = opengl_create_shader_program(opengl_shader_preset("planet_vertex"), opengl_shader_preset("planet_fragment"));
-
 	GLuint const texture_white = opengl_texture_to_gpu(image_raw{1,1,image_color_type::rgba,{255,255,255,255}});
 	mesh_drawable::default_shader = shader_mesh;
 	mesh_drawable::default_texture = texture_white;
 	curve_drawable::default_shader = shader_uniform_color;
 	segments_drawable::default_shader = shader_uniform_color;	
-	quadDefaultShader = shader_post_processing;
+	PostProcessing::defaultShader = shader_post_processing;
+	PostProcessing::initialiseRenderQuad();
 
-	planet_post_shader = opengl_create_shader_program(openShader("planet_post_vertex"), openShader("planet_post_fragment"));
-
-
-	initialiseRenderQuad();
-	initialiseFrameBuffer(framebuffer);
-	attachTextureToFramebuffer(framebuffer, textureColorbuffer, rbo, SCR_WIDTH, SCR_HEIGHT);
+	GLuint postProcShader = opengl_create_shader_program(openShader("planet_post_vertex"), openShader("planet_post_fragment"));
+	waterPostProc = PostProcessing(postProcShader, SCR_WIDTH, SCR_HEIGHT);
 	
 	user.global_frame = mesh_drawable(mesh_primitive_frame());
 	user.gui.display_frame = false;
@@ -150,10 +140,6 @@ void initialize_data()
 void display_scene()
 {
 	mesh_drawable &planet_visual = planet.getVisual();
-	/*planet_visual.shader = planet_shader;
-	glUseProgram(planet_visual.shader);
-	mat4 persp = projection_perspective(pi / 3, 1280.0 / 1024, 0.1f, 100.0f);
-	opengl_uniform(planet_visual.shader, "perspectiveInverse", inverse(persp));*/
 	draw(planet_visual, scene);
 	if (user.gui.display_wireframe) {
 		draw_wireframe(planet_visual, scene, { 1, 0, 0 });
@@ -181,7 +167,6 @@ void window_size_callback(GLFWwindow* , int width, int height)
 {
 	glViewport(0, 0, width, height);
 	float const aspect = width / static_cast<float>(height);
-	//scene.projection = projection_perspective(50.0f*pi/180.0f, aspect, 0.1f, 100.0f);
 	scene.projection = projection_perspective(pi/3, aspect, 0.1f, 100.0f);
 }
 
