@@ -91,7 +91,7 @@ int main(int, char* argv[])
 		
 		if(user.gui.display_frame) draw(user.global_frame, scene);
 
-		waterPostProc.renderColorbuffer(scene.camera);
+		waterPostProc.renderColorbuffer(scene.camera, scene.projection);
 		//display_scene();
 		
 		display_interface();

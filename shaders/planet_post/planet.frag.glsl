@@ -4,7 +4,6 @@ std::string s = R"(
 out vec4 FragColor;
 
 in vec2 TexCoords;
-in vec2 coords;
 
 uniform sampler2D screenTexture;
 uniform sampler2D depthTexture;
@@ -58,11 +57,10 @@ void main() {
     float dstThroughOcean = hitInfo.y;
     float oceanViewDepth = min(dstThroughOcean, depthFromCamera - dstToOcean);
     if (oceanViewDepth > 0) {
-      float opticalDepth = 1 - exp(-oceanViewDepth * 2);
+      float opticalDepth = 1 - exp(-oceanViewDepth * 6);
       float alpha = 1 - exp(-oceanViewDepth * 64);
       vec4 oceanCol = mix(vec4(0.3, 0.5, 1.0, 1.0), vec4(0.1, 0.1, 0.1, 1.0), opticalDepth);
       FragColor = mix(FragColor, oceanCol, alpha);
     }
-
 }
 )";
