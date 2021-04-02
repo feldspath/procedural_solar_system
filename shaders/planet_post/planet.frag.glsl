@@ -8,10 +8,15 @@ in vec2 TexCoords;
 uniform sampler2D screenTexture;
 uniform sampler2D depthTexture;
 
-uniform vec4 planetCenter = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+uniform vec4 planetCenter;
+
 uniform mat4 viewMatrix;
 uniform mat4 perspectiveInverse;
-uniform float oceanLevel = 1.5f;
+
+uniform float oceanLevel;
+uniform float depthMultiplier = 6.0f;
+uniform float waterBlendMultiplier = 60.0f;
+
 uniform float near = 0.1;
 uniform float far  = 100.0;
 
@@ -57,8 +62,8 @@ void main() {
     float dstThroughOcean = hitInfo.y;
     float oceanViewDepth = min(dstThroughOcean, depthFromCamera - dstToOcean);
     if (oceanViewDepth > 0) {
-      float opticalDepth = 1 - exp(-oceanViewDepth * 6);
-      float alpha = 1 - exp(-oceanViewDepth * 64);
+      float opticalDepth = 1 - exp(-oceanViewDepth * depthMultiplier);
+      float alpha = 1 - exp(-oceanViewDepth * waterBlendMultiplier);
       vec4 oceanCol = mix(vec4(0.3, 0.5, 1.0, 1.0), vec4(0.1, 0.1, 0.1, 1.0), opticalDepth);
       FragColor = mix(FragColor, oceanCol, alpha);
     }

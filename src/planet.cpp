@@ -16,10 +16,10 @@ Planet::Planet(float r, float level, GLuint shader) {
     radius = r;
     waterLevel = level;
     //m = mesh_primitive_sphere();
-    m = createIcoSphere(radius, 100);
+    m = createIcoSphere(radius, 200);
     visual = mesh_drawable(m, shader);
     visual.shading.color = { 0.4, 0.35, 0.25 };
-    visual.shading.phong.specular = 0.1f;
+    visual.shading.phong.specular = 0.0f;
 }
 
 void Planet::updatePlanetMesh(perlin_noise_parameters &parameters) {

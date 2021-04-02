@@ -18,12 +18,16 @@ private:
 
 	vcl::mesh m;
 	vcl::mesh_drawable visual;
-	float radius;
 
 	GLuint shader;
-	float waterLevel;
 
 public:
+
+	float radius = 1.0f;
+	float waterLevel = 1.5f;
+	float depthMultiplier = 6.0f;
+	float waterBlendMultiplier = 60.0f;
+
 
 	Planet() {}
 

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "vcl/vcl.hpp"
+#include "planet.hpp"
+
 
 class PostProcessing {
 private:
@@ -20,15 +22,19 @@ public:
 
 	PostProcessing() {}
 
+
 	PostProcessing(GLuint s, const unsigned int width, const unsigned int height);
 
 	static void initialiseRenderQuad();
+	static void deleteRenderQuad();
 
 	void startRenderToFrameBuffer();
 	void stopRenderToFrameBuffer();
-	void renderColorbuffer(vcl::camera_around_center& camera, const vcl::mat4& perspectiveMatrix);
+	void renderColorbuffer(vcl::camera_around_center& camera, const vcl::mat4& perspectiveMatrix, Planet& planet);
+
+	void buildTextures(const unsigned int width, const unsigned int height);
 
 private:
-	void attachTextureToFramebuffer(const unsigned int width, const unsigned int height);
+	void bindTexturesToFramebuffer();
 };
 

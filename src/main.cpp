@@ -91,7 +91,7 @@ int main(int, char* argv[])
 		
 		if(user.gui.display_frame) draw(user.global_frame, scene);
 
-		waterPostProc.renderColorbuffer(scene.camera, scene.projection);
+		waterPostProc.renderColorbuffer(scene.camera, scene.projection, planet);
 		//display_scene();
 		
 		display_interface();
@@ -105,6 +105,8 @@ int main(int, char* argv[])
 	imgui_cleanup();
 	glfwDestroyWindow(window);
 	glfwTerminate();
+
+	PostProcessing::deleteRenderQuad();
 
 	return 0;
 }
@@ -132,7 +134,7 @@ void initialize_data()
 	scene.camera.distance_to_center = 2.5f;
 	scene.camera.look_at({4,3,2}, {0,0,0}, {0,0,1});
 
-	planet = Planet(1.0f, 1.0f, shader_mesh);
+	planet = Planet(1.0f, 1.5f, shader_mesh);
 	planet.updatePlanetMesh(parameters);
 }
 
@@ -152,11 +154,21 @@ void display_interface()
 	ImGui::Checkbox("Frame", &user.gui.display_frame);
 	ImGui::Checkbox("Wireframe", &user.gui.display_wireframe);
 	bool update = false;
-	update |= ImGui::SliderFloat("Persistance", &parameters.persistency, 0.1f, 0.6f);
-	update |= ImGui::SliderFloat("Frequency gain", &parameters.frequency_gain, 1.5f, 2.5f);
-	update |= ImGui::SliderInt("Octave", &parameters.octave, 1, 8);
-	update |= ImGui::SliderFloat("Influence", &parameters.influence, 0.0f, 1.0f);
-	update |= ImGui::SliderFloat3("Center", parameters.center, 0.0f, 1.0f);
+	if (ImGui::CollapsingHeader("Planet parameters")) {
+		if (ImGui::TreeNode("Terrain generation")) {
+			update |= ImGui::SliderFloat("Radius", &planet.radius, 0.0f, 3.0f);
+			update |= ImGui::SliderFloat("Persistance", &parameters.persistency, 0.1f, 0.6f);
+			update |= ImGui::SliderFloat("Frequency gain", &parameters.frequency_gain, 1.5f, 2.5f);
+			update |= ImGui::SliderInt("Octave", &parameters.octave, 1, 8);
+			update |= ImGui::SliderFloat("Influence", &parameters.influence, 0.0f, 1.0f);
+			update |= ImGui::SliderFloat3("Center", parameters.center, 0.0f, 1.0f);
+		}
+		if (ImGui::TreeNode("Water")) {
+			ImGui::SliderFloat("Water level", &planet.waterLevel, 0.0f, 3.0f);
+			ImGui::SliderFloat("Depth multiplier", &planet.depthMultiplier, 0.0f, 10.0f);
+			ImGui::SliderFloat("Water blend multipler", &planet.waterBlendMultiplier, 0.0f, 100.0f);
+		}
+	}
 
 	if (update)
 		planet.updatePlanetMesh(parameters);
@@ -168,6 +180,7 @@ void window_size_callback(GLFWwindow* , int width, int height)
 	glViewport(0, 0, width, height);
 	float const aspect = width / static_cast<float>(height);
 	scene.projection = projection_perspective(pi/3, aspect, 0.1f, 100.0f);
+	waterPostProc.buildTextures(width, height);
 }
 
 
