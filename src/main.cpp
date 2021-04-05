@@ -4,6 +4,7 @@
 
 #include "planet.hpp"
 #include "post_processing.hpp"
+#include "noises.hpp"
 
 
 using namespace vcl;
@@ -30,6 +31,8 @@ struct scene_environment
 };
 scene_environment scene;
 
+
+
 void mouse_move_callback(GLFWwindow* window, double xpos, double ypos);
 void window_size_callback(GLFWwindow* window, int width, int height);
 
@@ -43,9 +46,10 @@ const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 1024;
 
 Planet planet;
-perlin_noise_parameters parameters;
-
 PostProcessing waterPostProc;
+
+float previousTime;
+float deltaTime;
 
 
 int main(int, char* argv[])
@@ -69,8 +73,12 @@ int main(int, char* argv[])
 	std::cout<<"Start animation loop ..."<<std::endl;
 	user.fps_record.start();
 	glEnable(GL_DEPTH_TEST);
+	previousTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
+		deltaTime = glfwGetTime() - previousTime;
+		previousTime = glfwGetTime();
+		planet.rotatePlanet(deltaTime);
 		scene.light = scene.camera.position();
 		user.fps_record.update();
 
@@ -102,7 +110,7 @@ int main(int, char* argv[])
 		glfwPollEvents();
 	}
 
-	imgui_cleanup();
+	vcl::imgui_cleanup();
 	glfwDestroyWindow(window);
 	glfwTerminate();
 
@@ -134,14 +142,27 @@ void initialize_data()
 	scene.camera.distance_to_center = 2.5f;
 	scene.camera.look_at({4,3,2}, {0,0,0}, {0,0,1});
 
-	planet = Planet(1.0f, 1.5f, shader_mesh);
-	planet.updatePlanetMesh(parameters);
+
+	// Planet init
+	GLuint planetShader = opengl_create_shader_program(openShader("planet_vertex"), openShader("planet_fragment"));
+
+	//image_raw const im = image_load_png("assets/checker_texture.png");
+	image_raw const im = image_load_png("assets/moon_normal_map1.png");
+	GLuint const planetTexture = opengl_texture_to_gpu(im, GL_REPEAT, GL_REPEAT);
+	planet = Planet(1.0f, planetShader);
+	planet.setTexture(planetTexture);
+	planet.updatePlanetMesh();
+
+	// Light
+	scene.light = { 2.0f, 3.0f, 2.0f };
+	
 }
 
 
 void display_scene()
 {
-	mesh_drawable &planet_visual = planet.getVisual();
+	mesh_drawable &planet_visual = planet.visual;
+	planet.setCustomUniforms();
 	draw(planet_visual, scene);
 	if (user.gui.display_wireframe) {
 		draw_wireframe(planet_visual, scene, { 1, 0, 0 });
@@ -153,25 +174,73 @@ void display_interface()
 {
 	ImGui::Checkbox("Frame", &user.gui.display_frame);
 	ImGui::Checkbox("Wireframe", &user.gui.display_wireframe);
+
+	float camPos[3] = { scene.light.x, scene.light.y, scene.light.z };
+	ImGui::SliderFloat3("Light position", camPos, 0.0f, 10.0f);
+	scene.light = vec3(camPos[0], camPos[1], camPos[2]);
+
 	bool update = false;
 	if (ImGui::CollapsingHeader("Planet parameters")) {
+
+		ImGui::SliderFloat("Rotation speed", &planet.rotateSpeed, 0.0f, 3.0f);
+
+		float col[3] = { planet.visual.shading.color.x, planet.visual.shading.color.y , planet.visual.shading.color.z };
+		ImGui::ColorEdit3("Planet color", col);
+		planet.visual.shading.color = vec3(col[0], col[1], col[2]);
+
+
 		if (ImGui::TreeNode("Terrain generation")) {
 			update |= ImGui::SliderFloat("Radius", &planet.radius, 0.0f, 3.0f);
-			update |= ImGui::SliderFloat("Persistance", &parameters.persistency, 0.1f, 0.6f);
-			update |= ImGui::SliderFloat("Frequency gain", &parameters.frequency_gain, 1.5f, 2.5f);
-			update |= ImGui::SliderInt("Octave", &parameters.octave, 1, 8);
-			update |= ImGui::SliderFloat("Influence", &parameters.influence, 0.0f, 1.0f);
-			update |= ImGui::SliderFloat3("Center", parameters.center, 0.0f, 1.0f);
+			if (ImGui::TreeNode("Continent noise")) {
+				update |= displayPerlinNoiseGui(planet.perlinParameters);
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("Mountain noise")) {
+				update |= ImGui::SliderFloat("Sharpness", &planet.mountainSharpness, 0.1f, 5.0f);
+				update |= displayPerlinNoiseGui(planet.mountainsParameters);
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("Oceans")) {
+				update |= ImGui::SliderFloat("Floor depth", &planet.oceanFloorDepth, 0.0f, 1.0f);
+				update |= ImGui::SliderFloat("Floor smoothing", &planet.oceanFloorSmoothing, 0.1f, 20.0f);
+				update |= ImGui::SliderFloat("Depth multiplier", &planet.oceanDepthMultiplier, 0.0f, 10.0f);
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("Moutains Mask")) {
+				update |= ImGui::SliderFloat("Moutains blend", &planet.mountainsBlend, 0.1f, 20.0f);
+				update |= ImGui::SliderFloat("Vertical shift", &planet.maskShift, -2.0f, 2.0f);
+				update |= displayPerlinNoiseGui(planet.maskParameters);
+				ImGui::TreePop();
+			}
+
+			ImGui::TreePop();
 		}
 		if (ImGui::TreeNode("Water")) {
-			ImGui::SliderFloat("Water level", &planet.waterLevel, 0.0f, 3.0f);
-			ImGui::SliderFloat("Depth multiplier", &planet.depthMultiplier, 0.0f, 10.0f);
-			ImGui::SliderFloat("Water blend multipler", &planet.waterBlendMultiplier, 0.0f, 100.0f);
+			ImGui::SliderFloat("Water level", &waterPostProc.waterLevel, 0.0f, 3.0f);
+
+			// Water Color
+			float colD[3] = {waterPostProc.waterColorSurface.x, waterPostProc.waterColorSurface.y , waterPostProc.waterColorSurface.z};
+			ImGui::ColorEdit3("Surface water", colD);
+			waterPostProc.waterColorSurface = vec3(colD[0], colD[1], colD[2]);
+			float colS[3] = { waterPostProc.waterColorDeep.x, waterPostProc.waterColorDeep.y , waterPostProc.waterColorDeep.z };
+			ImGui::ColorEdit3("Deep water", colS);
+			waterPostProc.waterColorDeep = vec3(colS[0], colS[1], colS[2]);
+
+			ImGui::SliderFloat("Depth multiplier", &waterPostProc.depthMultiplier, 0.0f, 10.0f);
+			ImGui::SliderFloat("Water blend multipler", &waterPostProc.waterBlendMultiplier, 0.0f, 100.0f);
+			ImGui::TreePop();
+
+		}
+		if (ImGui::TreeNode("Texture")) {
+			ImGui::SliderFloat("Scale", &planet.textureScale, 0.1f, 2.0f);
+			ImGui::SliderFloat("Sharpness", &planet.textureSharpness, 0.1f, 5.0f);
+			ImGui::SliderFloat("Normal map influence", &planet.normalMapInfluence, 0.0f, 1.0f);
+			ImGui::TreePop();
 		}
 	}
 
 	if (update)
-		planet.updatePlanetMesh(parameters);
+		planet.updatePlanetMesh();
 }
 
 
@@ -182,7 +251,7 @@ void window_size_callback(GLFWwindow* , int width, int height)
 	scene.projection = projection_perspective(pi/3, aspect, 0.1f, 100.0f);
 	waterPostProc.buildTextures(width, height);
 }
-
+	
 
 void mouse_move_callback(GLFWwindow* window, double xpos, double ypos)
 {
@@ -218,6 +287,14 @@ std::string openShader(std::string const& shader_name)
 	}
 	if (shader_name == "planet_post_fragment") {
 		#include "../shaders/planet_post/planet.frag.glsl"
+		return s;
+	}
+	if (shader_name == "planet_vertex") {
+		#include "../shaders/planet/planet.vert.glsl"
+		return s;
+	}
+	if (shader_name == "planet_fragment") {
+		#include "../shaders/planet/planet.frag.glsl"
 		return s;
 	}
 

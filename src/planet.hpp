@@ -1,48 +1,50 @@
 #pragma once
 
 #include "vcl/vcl.hpp"
-
-struct perlin_noise_parameters
-{
-	float persistency = 0.35f;
-	float frequency_gain = 2.0f;
-	int octave = 6;
-	float influence = 0.5f;
-
-	float center[3];
-};
+#include "noises.hpp"
 
 class Planet {
 
 private:
 
 	vcl::mesh m;
-	vcl::mesh_drawable visual;
-
-	GLuint shader;
+	GLuint shader = 0;
 
 public:
+	vcl::mesh_drawable visual;
 
 	float radius = 1.0f;
-	float waterLevel = 1.5f;
-	float depthMultiplier = 6.0f;
-	float waterBlendMultiplier = 60.0f;
+	perlin_noise_parameters perlinParameters;
+	perlin_noise_parameters mountainsParameters;
+	perlin_noise_parameters maskParameters;
+	float mountainSharpness = 1.0f;
+	float textureScale = 1.0f;
+	float textureSharpness = 5.0f;
+	float normalMapInfluence = 0.2f;
 
+	float oceanFloorDepth = 0.5f;
+	float oceanFloorSmoothing = 1.0f;
+	float oceanDepthMultiplier = 2.0f;
+	float mountainsBlend = 1.0f;
+	float maskShift = 0.0f;
+
+	float rotateSpeed = 0.0f;
 
 	Planet() {}
 
-	Planet(float r, float level, GLuint shader = vcl::mesh_drawable::default_shader);
+	Planet(float r, GLuint shader = vcl::mesh_drawable::default_shader);
 
-	void updatePlanetMesh(perlin_noise_parameters &parameters);
-	vcl::mesh_drawable& getVisual();
+	void updatePlanetMesh();
 
-	float& getRadiusRef() {
-		return radius;
+	void setCustomUniforms();
+	void setTexture(GLuint texture);
+
+	void rotatePlanet(float deltaTime) {
+		vcl::rotation rot({ 0.0f, 0.0f, 1.0f }, deltaTime * rotateSpeed);
+		visual.transform.rotate = rot * visual.transform.rotate;
 	}
 
-	float& getWaterLevelRef() {
-		return waterLevel;
-	}
+	vcl::vec3 getPlanetRadiusAt(vcl::vec3& position);
 
 };
 

@@ -23,14 +23,6 @@ namespace vcl
 			#include "single_color/single_color.frag.glsl"
 			return s;
 		}
-		if (shader_name == "planet_vertex") {
-			#include "planet/planet.vert.glsl";
-			return s;
-		}
-		if (shader_name == "planet_fragment") {
-			#include "planet/planet.frag.glsl";
-			return s;
-		}
 		if (shader_name == "post_processing_vertex") {
 			#include "post_processing/post_processing.vert.glsl";
 			return s;

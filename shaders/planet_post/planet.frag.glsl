@@ -17,6 +17,9 @@ uniform float oceanLevel;
 uniform float depthMultiplier = 6.0f;
 uniform float waterBlendMultiplier = 60.0f;
 
+uniform vec3 waterColorDeep;
+uniform vec3 waterColorSurface;
+
 uniform float near = 0.1;
 uniform float far  = 100.0;
 
@@ -64,8 +67,13 @@ void main() {
     if (oceanViewDepth > 0) {
       float opticalDepth = 1 - exp(-oceanViewDepth * depthMultiplier);
       float alpha = 1 - exp(-oceanViewDepth * waterBlendMultiplier);
-      vec4 oceanCol = mix(vec4(0.3, 0.5, 1.0, 1.0), vec4(0.1, 0.1, 0.1, 1.0), opticalDepth);
+      //vec4 oceanCol = mix(vec4(0.3, 0.5, 1.0, 1.0), vec4(0.1, 0.1, 0.1, 1.0), opticalDepth);
+      vec4 oceanCol = mix(vec4(waterColorSurface, 1.0), vec4(waterColorDeep, 1.0), opticalDepth);
       FragColor = mix(FragColor, oceanCol, alpha);
     }
+
+
+
+
 }
 )";

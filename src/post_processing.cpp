@@ -80,13 +80,17 @@ void PostProcessing::renderColorbuffer(camera_around_center& camera, const mat4&
 	opengl_uniform(shader, "perspectiveInverse", inverse(perspectiveMatrix), false);
 
 	// Terrain
-	vcl::vec4 center = vec4(planet.getVisual().transform.translate, 1.0f);
+	vcl::vec4 center = vec4(planet.visual.transform.translate, 1.0f);
 	opengl_uniform(shader, "planetCenter", center);
 
 	// Water
-	opengl_uniform(shader, "oceanLevel", planet.waterLevel);
-	opengl_uniform(shader, "depthMultiplier", planet.depthMultiplier);
-	opengl_uniform(shader, "waterBlendMultiplier", planet.waterBlendMultiplier);
+	opengl_uniform(shader, "oceanLevel", waterLevel);
+	opengl_uniform(shader, "depthMultiplier", depthMultiplier);
+	opengl_uniform(shader, "waterBlendMultiplier", waterBlendMultiplier);
+
+	// Color
+	opengl_uniform(shader, "waterColorSurface", waterColorSurface);
+	opengl_uniform(shader, "waterColorDeep", waterColorDeep);
 
 	glBindVertexArray(quadVao);
 	glActiveTexture(GL_TEXTURE0); // Texture unit 0
