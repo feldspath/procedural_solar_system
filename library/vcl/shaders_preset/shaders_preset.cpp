@@ -24,11 +24,11 @@ namespace vcl
 			return s;
 		}
 		if (shader_name == "post_processing_vertex") {
-			#include "post_processing/post_processing.vert.glsl";
+			#include "post_processing/post_processing.vert.glsl"
 			return s;
 		}
 		if (shader_name == "post_processing_fragment") {
-			#include "post_processing/post_processing.frag.glsl";
+			#include "post_processing/post_processing.frag.glsl"
 			return s;
 		}
 
