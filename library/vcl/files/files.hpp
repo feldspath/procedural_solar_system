@@ -16,7 +16,7 @@ namespace vcl
 	/** Return true if the file can be accessed, false otherwise */
 	bool check_file_exist(const std::string filename);
 
-
+	std::string read_text_file(std::string const& filename);
 	template <typename T> void read_from_file(std::string const& filename, T& data);
 	template <typename T> void read_from_file(std::string const& filename, buffer<buffer<T>>& data);
 

@@ -35,7 +35,7 @@ static void generateFaceVertex(vec3 v0, vec3 v1, vec3 v2, int division, vcl::buf
 	}
 }
 
-mesh createIcoSphere(float r, unsigned int division) {
+mesh mesh_icosphere(float r, unsigned int division) {
 	mesh m;
 	int size = 4 * (division + 1) * (division + 1) + 2;
 	int upVertexCount = 2 * (division + 1) * (division + 2);

@@ -1,4 +1,4 @@
 #pragma once
 #include "vcl/vcl.hpp"
 
-vcl::mesh createIcoSphere(float r, unsigned int division);
+vcl::mesh mesh_icosphere(float r, unsigned int division);

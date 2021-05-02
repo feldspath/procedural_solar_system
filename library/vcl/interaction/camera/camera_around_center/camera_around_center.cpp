@@ -28,8 +28,9 @@ namespace vcl
 		rotation r_pitch = rotation({1,0,0}, pitch);
 		rotation r_yaw   = rotation({0,1,0}, yaw);
 
-		orientation_camera = orientation_camera * r_yaw * r_pitch * r_roll;
+		orientation_camera = orientation_camera * inverse(r_yaw * r_pitch * r_roll);
 	}
+
 
 	void camera_around_center::manipulator_scale_distance_to_center(float magnitude)
 	{

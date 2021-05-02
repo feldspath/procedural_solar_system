@@ -65,10 +65,6 @@ namespace vcl
         buffer_stack<T,2> xy() const;
         buffer_stack<T,2> yz() const;
         buffer_stack<T,2> xz() const;
-
-        //norm 
-        buffer_stack<T, 3>& normalize();
-        buffer_stack<T, 3>& setLength(float length);
     };
 
     /** Cross product between two 3-component vectors */
@@ -107,6 +103,8 @@ namespace vcl
     {
         return 3;
     }
+
+
 
     template <typename T>  buffer_stack<T, 3>& buffer_stack<T, 3>::fill(T const& value)
     {
@@ -211,21 +209,6 @@ namespace vcl
         return buffer_stack<T, 2>{x, z};
     }
 
-    template <typename T>  buffer_stack<T, 3>& buffer_stack<T, 3>::normalize() {
-        float norm = std::sqrt(x * x + y * y + z * z);
-        x /= norm;
-        y /= norm;
-        z /= norm;
-        return *this;
-    }
-
-    template <typename T>  buffer_stack<T, 3>& buffer_stack<T, 3>::setLength(float length) {
-        float norm = std::sqrt(x * x + y * y + z * z);
-        x *= length / norm;
-        y *= length / norm;
-        z *= length / norm;
-        return *this;
-    }
 
     template <size_t idx, typename T> T const& get(buffer_stack<T, 3> const& data)
     {
@@ -243,4 +226,7 @@ namespace vcl
     {
         return "buffer_stack3<" + type_str(T()) + ">";
     }
+
+
+
 }

@@ -183,6 +183,64 @@ namespace vcl
 		return shape;
 	}
 
+	mesh mesh_primitive_ellipsoid(vec3 scale, vec3 const& center, int Nu, int Nv)
+	{
+		assert_vcl(scale.x>0 && scale.y>0 && scale.z>0, "Ellipsoid radius should be > 0");
+		assert_vcl(Nu>2 && Nv>2, "Sphere samples should be > 2");
+
+		mesh shape;
+		for( size_t ku=0; ku<size_t(Nu); ++ku ) {
+			for( size_t kv=0; kv<size_t(Nv); ++kv ) {
+				float const u = ku/(Nu-1.0f);
+				float const alpha = kv/(Nv-1.0f);
+				float const v = 1.0f/(Nv+1.0f) * (1-alpha) + alpha* Nv/(Nv+1.0f) ;
+
+				float const theta = 2.0f * pi * (u-0.5f);
+				float const phi   =        pi * (v-0.5f);
+
+				// spherical coordinates
+				vec3 const n = {
+					std::cos(phi)*std::cos(theta), 
+					std::cos(phi)*std::sin(theta), 
+					std::sin(phi)};
+				vec3 const p = scale * n + center;
+				vec2 const uv = {u,v};
+
+				shape.position.push_back(p);
+				shape.normal.push_back(n);
+				shape.uv.push_back(uv);
+			}
+		}
+
+		shape.connectivity = connectivity_grid(Nu,Nv);
+
+		
+		// poles
+		for (size_t ku = 0; ku < size_t(Nu-1); ++ku)
+		{
+			shape.position.push_back(center+scale*vec3{0,0,-1.0f});
+			shape.normal.push_back(vec3{0,0,-1.0f});
+			shape.uv.push_back({ku/(Nu-1.0f),0.0f});
+		}
+		for (size_t ku = 0; ku < size_t(Nu-1); ++ku)
+			shape.connectivity.push_back({Nu*Nv+ku, Nv*ku, Nv*(ku+1)});
+
+		for (size_t ku = 0; ku < size_t(Nu-1); ++ku)
+		{
+			shape.position.push_back(center+scale*vec3{0,0,1.0f});
+			shape.normal.push_back(vec3{0,0,1.0f});
+			shape.uv.push_back({ku/(Nu-1.0f),1.0f});
+		}
+		for (size_t ku = 0; ku < size_t(Nu-1); ++ku)
+			shape.connectivity.push_back({Nu*Nv+Nu-1+ku, Nv-1+Nv*(ku+1), Nv-1+Nv*ku});
+
+		
+
+		shape.fill_empty_field();
+		shape.flip_connectivity();
+		return shape;
+	}
+
 
 
 	mesh mesh_primitive_grid(vec3 const& p00, vec3 const& p10, vec3 const& p11, vec3 const& p01, int Nu, int Nv)

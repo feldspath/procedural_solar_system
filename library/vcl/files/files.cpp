@@ -40,4 +40,14 @@ namespace vcl
 
         stream.close();
     }
+
+    std::string read_text_file(std::string const& filename)
+    {
+        assert_file_exist(filename);
+
+        std::ifstream str(filename);
+        std::stringstream buffer;
+        buffer << str.rdbuf();
+        return buffer.str();
+    }
 }

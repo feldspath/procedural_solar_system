@@ -17,7 +17,7 @@ vec3 Planet::getPlanetRadiusAt(vec3& position) {
     const vec3 posOnUnitSphere = normalize(position);
 
     // Continent (simple perlin noise)
-    float const perlin_noise = perlinNoise(posOnUnitSphere, perlinParameters);
+    float const perlin_noise = perlinNoise(posOnUnitSphere, continentParameters);
     
     // Moutains
     float moutainMask = blend(perlinNoise(posOnUnitSphere, maskParameters) + maskShift, mountainsBlend);
@@ -32,14 +32,34 @@ vec3 Planet::getPlanetRadiusAt(vec3& position) {
     return newPosition;
 }
 
-Planet::Planet(float r, GLuint shader) {
+Planet::Planet(float r, const unsigned int width, const unsigned int height, int division) {
     radius = r;
     //m = mesh_primitive_sphere();
-    m = createIcoSphere(radius, 100);
+    m = mesh_icosphere(radius, division);
+
+    shader = opengl_create_shader_program(read_text_file(("shaders/planet/planet.vert.glsl")), read_text_file("shaders/planet/planet.frag.glsl"));
+    this->shader = shader;
     visual = mesh_drawable(m, shader);
     visual.shading.color = { 0.4, 0.35, 0.25 };
     visual.shading.phong.specular = 0.0f;
-    this->shader = shader;
+
+    //image_raw const im = image_load_png("assets/checker_texture.png");
+    image_raw const im = image_load_png("assets/moon_normal_map1.png");
+    GLuint const planetTexture = opengl_texture_to_gpu(im, GL_REPEAT, GL_REPEAT);
+    visual.texture = planetTexture;
+    updatePlanetMesh();
+
+
+    buildFbo(width, height);
+
+    postProcessingQuad = mesh_drawable_multitexture(mesh_primitive_quadrangle({ -1,-1,0 }, { 1,-1,0 }, { 1,1,0 }, { -1,1,0 }));
+    postProcessingQuad.texture = intermediate_image;
+    postProcessingQuad.texture_2 = depth_buffer;
+
+    GLuint const shader_screen_render = opengl_create_shader_program(read_text_file("shaders/planet/water.vert.glsl"), read_text_file("shaders/planet/water.frag.glsl"));
+    postProcessingQuad.shader = shader_screen_render;
+
+    
 }
 
 void Planet::updatePlanetMesh() {
@@ -60,7 +80,44 @@ void Planet::setCustomUniforms() {
     opengl_uniform(shader, "normalMapInfluence", normalMapInfluence, false);
 }
 
-void Planet::setTexture(GLuint texture) {
-    visual.texture = texture;
+void Planet::rotatePlanet(float deltaTime) {
+    vcl::rotation rot({ 0.0f, 0.0f, 1.0f }, deltaTime * rotateSpeed);
+    visual.transform.rotate = rot * visual.transform.rotate;
 }
+
+void Planet::buildFbo(const unsigned int width, const unsigned int height) {
+    glGenFramebuffers(1, &fbo);
+    glGenTextures(1, &depth_buffer);
+    glGenTextures(1, &intermediate_image);
+
+    buildTextures(width, height);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, intermediate_image, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_buffer, 0);
+    opengl_check;
+
+    assert_vcl(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "Error : Framebuffer is not complete");
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+}
+
+void Planet::buildTextures(const unsigned int width, const unsigned int height) {
+    // Texture color buffer
+    glBindTexture(GL_TEXTURE_2D, intermediate_image);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    opengl_check;
+
+    // Texture depth buffer
+    glBindTexture(GL_TEXTURE_2D, depth_buffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    opengl_check;
+}
+
 

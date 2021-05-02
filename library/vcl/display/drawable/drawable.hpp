@@ -7,3 +7,4 @@
 #include "curve_drawable/curve_drawable.hpp"
 #include "segments_drawable/segments_drawable.hpp"
 #include "trajectory_drawable/trajectory_drawable.hpp"
+#include "hierarchy_mesh_drawable/hierarchy_mesh_drawable.hpp"

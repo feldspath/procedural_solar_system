@@ -1,24 +1,23 @@
-std::string s = R"(
 #version 330 core
 
 out vec4 FragColor;
 
-in vec2 TexCoords;
+in vec2 uv_frag;
 
-uniform sampler2D screenTexture;
-uniform sampler2D depthTexture;
+uniform sampler2D image_texture;
+uniform sampler2D image_texture_2; // Depth buffer
 
 uniform vec4 planetCenter;
 
 uniform mat4 viewMatrix;
 uniform mat4 perspectiveInverse;
 
-uniform float oceanLevel;
+uniform float oceanLevel=1.0f;
 uniform float depthMultiplier = 6.0f;
 uniform float waterBlendMultiplier = 60.0f;
 
-uniform vec3 waterColorDeep;
-uniform vec3 waterColorSurface;
+uniform vec3 waterColorDeep = vec3(0.0f, 0.0f, 0.0f);
+uniform vec3 waterColorSurface = vec3(0.0f, 0.2f, 0.8f);
 
 uniform float near = 0.1;
 uniform float far  = 100.0;
@@ -54,9 +53,9 @@ vec3 cameraDirection(vec2 screenPos) {
 }
 
 void main() {
-    FragColor = texture(screenTexture, TexCoords);
-    float depth = LinearizeDepth(texture(depthTexture, TexCoords).r);
-    vec3 direction = cameraDirection(2 * TexCoords - 1);
+    FragColor = texture(image_texture, uv_frag);
+    float depth = LinearizeDepth(texture(image_texture_2, uv_frag).r);
+    vec3 direction = cameraDirection(2 * uv_frag - 1);
     vec3 camSpaceFrag = direction * depth / direction.z;
     float depthFromCamera = length(camSpaceFrag);
 
@@ -72,8 +71,4 @@ void main() {
       FragColor = mix(FragColor, oceanCol, alpha);
     }
 
-
-
-
 }
-)";

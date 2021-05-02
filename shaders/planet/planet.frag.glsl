@@ -1,4 +1,3 @@
-std::string s = R"(
 #version 330 core
 
 in struct fragment_data
@@ -74,4 +73,3 @@ void main()
 
 	FragColor = vec4(color_shading, alpha * color_image_texture.a);
 }
-)";

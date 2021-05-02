@@ -16,11 +16,11 @@ namespace vcl
 	rotation camera_spherical_coordinates::orientation() const
 	{
 		rotation r_phi = rotation({0,1,0}, phi);
-		rotation r_theta = rotation({0,0,1}, theta);
-		return r_theta * r_phi;
+		rotation r_theta = rotation({1,0,0}, theta);
+		return inverse(r_theta * r_phi);
 	}
 
-	void camera_spherical_coordinates::manipulator_rotate_spherical_coordinates(float d_theta, float d_phi)
+	void camera_spherical_coordinates::manipulator_rotate_spherical_coordinates(float d_phi, float d_theta)
 	{
 		theta += d_theta;
 		phi += d_phi;

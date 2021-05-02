@@ -82,6 +82,7 @@ namespace vcl
 
         glfwMakeContextCurrent(window);
 
+
         // Initialize GLAD to get access to OpenGL functions
         const int glad_init_value = gladLoadGL();
         if( glad_init_value == 0 ) {

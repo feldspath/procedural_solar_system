@@ -34,6 +34,8 @@ namespace vcl
 
 	mesh mesh_primitive_sphere(float radius=1.0f, vec3 const& center={0,0,0}, int Nu=40, int Nv=20);
 
+	mesh mesh_primitive_ellipsoid(vec3 scale=vec3{1.0f, 1.0f, 1.0f}, vec3 const& center={0,0,0}, int Nu=40, int Nv=20);
+
 	mesh mesh_primitive_torus(float r_major=1.0f, float r_minor=0.25f, vec3 const& center={0,0,0}, vec3 const& axis_orientation={0,0,1}, int Nu=55, int Nv=15);
 
 	mesh mesh_primitive_grid(vec3 const& p00={0,0,0}, vec3 const& p10={1,0,0}, vec3 const& p11={1,1,0}, vec3 const& p01={0,1,0}, int Nu=10, int Nv=10);

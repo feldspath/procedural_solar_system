@@ -30,9 +30,9 @@ uniform bool texture_inverse_y = false;
 void main()
 {
 	vec3 N = normalize(fragment.normal);
-	// if (gl_FrontFacing == false) {
-	// 	N = -N;
-	// }
+	if (gl_FrontFacing == false) {
+		N = -N;
+	}
 	vec3 L = normalize(light-fragment.position);
 
 	float diffuse = max(dot(N,L),0.0);
@@ -54,7 +54,7 @@ void main()
 	}
 	vec3 color_object  = fragment.color * color * color_image_texture.rgb;
 	vec3 color_shading = (Ka + Kd * diffuse) * color_object + Ks * specular * vec3(1.0, 1.0, 1.0);
-
+	
 	FragColor = vec4(color_shading, alpha * color_image_texture.a);
 }
 )";
