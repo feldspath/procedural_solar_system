@@ -2,6 +2,7 @@
 #include "icosphere.hpp"
 #include "vcl/vcl.hpp"
 #include "noises.hpp"
+#include "mesh_drawable_multitexture.hpp"
 
 using namespace vcl;
 
@@ -12,6 +13,12 @@ static float smoothMax(float a, float b, float k) {
 static float blend(float noise, float blending) {
     return std::atan(noise * blending) / pi + 0.5f;
 }
+
+mesh_drawable_multitexture Planet::postProcessingQuad;
+GLuint Planet::shader = -1;
+GLuint Planet::fbo;
+GLuint Planet::depth_buffer;
+GLuint Planet::intermediate_image;
 
 vec3 Planet::getPlanetRadiusAt(vec3& position) {
     const vec3 posOnUnitSphere = normalize(position);
@@ -32,13 +39,11 @@ vec3 Planet::getPlanetRadiusAt(vec3& position) {
     return newPosition;
 }
 
-Planet::Planet(float r, const unsigned int width, const unsigned int height, int division) {
+Planet::Planet(float r, int division) {
     radius = r;
     //m = mesh_primitive_sphere();
     m = mesh_icosphere(radius, division);
 
-    shader = opengl_create_shader_program(read_text_file(("shaders/planet/planet.vert.glsl")), read_text_file("shaders/planet/planet.frag.glsl"));
-    this->shader = shader;
     visual = mesh_drawable(m, shader);
     visual.shading.color = { 0.4, 0.35, 0.25 };
     visual.shading.phong.specular = 0.0f;
@@ -47,23 +52,11 @@ Planet::Planet(float r, const unsigned int width, const unsigned int height, int
     image_raw const im = image_load_png("assets/moon_normal_map1.png");
     GLuint const planetTexture = opengl_texture_to_gpu(im, GL_REPEAT, GL_REPEAT);
     visual.texture = planetTexture;
-    updatePlanetMesh();
-
-
-    buildFbo(width, height);
-
-    postProcessingQuad = mesh_drawable_multitexture(mesh_primitive_quadrangle({ -1,-1,0 }, { 1,-1,0 }, { 1,1,0 }, { -1,1,0 }));
-    postProcessingQuad.texture = intermediate_image;
-    postProcessingQuad.texture_2 = depth_buffer;
-
-    GLuint const shader_screen_render = opengl_create_shader_program(read_text_file("shaders/planet/water.vert.glsl"), read_text_file("shaders/planet/water.frag.glsl"));
-    postProcessingQuad.shader = shader_screen_render;
-
-    
+    updatePlanetMesh();    
 }
 
 void Planet::updatePlanetMesh() {
-    for (int i = 0; i < m.position.size(); i++) {
+    for (int i = 0; i < (int)m.position.size(); i++) {
         m.position[i] = getPlanetRadiusAt(m.position[i]);
     }
     m.compute_normal();
@@ -83,6 +76,22 @@ void Planet::setCustomUniforms() {
 void Planet::rotatePlanet(float deltaTime) {
     vcl::rotation rot({ 0.0f, 0.0f, 1.0f }, deltaTime * rotateSpeed);
     visual.transform.rotate = rot * visual.transform.rotate;
+}
+
+void Planet::initPlanetRenderer(const unsigned int width, const unsigned int height) {
+    // Planet shader
+    shader = opengl_create_shader_program(read_text_file(("shaders/planet/planet.vert.glsl")), read_text_file("shaders/planet/planet.frag.glsl"));
+
+    // Fbo
+    buildFbo(width, height);
+
+    // Post processing quad
+    postProcessingQuad = mesh_drawable_multitexture(mesh_primitive_quadrangle({ -1,-1,0 }, { 1,-1,0 }, { 1,1,0 }, { -1,1,0 }));
+    postProcessingQuad.texture = intermediate_image;
+    postProcessingQuad.texture_2 = depth_buffer;
+
+    GLuint const shader_screen_render = opengl_create_shader_program(read_text_file("shaders/planet/water.vert.glsl"), read_text_file("shaders/planet/water.frag.glsl"));
+    postProcessingQuad.shader = shader_screen_render;
 }
 
 void Planet::buildFbo(const unsigned int width, const unsigned int height) {
@@ -118,6 +127,13 @@ void Planet::buildTextures(const unsigned int width, const unsigned int height) 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     opengl_check;
+}
+
+void Planet::startPlanetRendering() {
+    glEnable(GL_DEPTH_TEST);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 

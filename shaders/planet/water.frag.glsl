@@ -70,5 +70,9 @@ void main() {
       vec4 oceanCol = mix(vec4(waterColorSurface, 1.0), vec4(waterColorDeep, 1.0), opticalDepth);
       FragColor = mix(FragColor, oceanCol, alpha);
     }
+    
+    if (dot(direction, normalize(vec3(viewMatrix * planetCenter))) > 0.995) {
+    	FragColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    }
 
 }

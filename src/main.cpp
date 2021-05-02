@@ -30,8 +30,6 @@ struct scene_environment
 };
 scene_environment scene;
 
-
-
 void mouse_move_callback(GLFWwindow* window, double xpos, double ypos);
 void window_size_callback(GLFWwindow* window, int width, int height);
 
@@ -46,6 +44,7 @@ float previousTime;
 float deltaTime;
 
 Planet planet;
+Planet planetB;
 
 int main(int, char* argv[])
 {
@@ -125,7 +124,10 @@ void initialize_data()
 	scene.camera.distance_to_center = 2.5f;
 	scene.camera.look_at({4,3,2}, {0,0,0}, {0,0,1});
 
-	planet = Planet(1.0f, SCR_WIDTH, SCR_HEIGHT);
+    Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
+    planet = Planet(1.0f);
+    planetB = Planet(1.0f);
+    planetB.visual.transform.translate = {3.0f, 0.0f, 0.0f};
 
 	// Light
 	scene.light = { 2.0f, 3.0f, 2.0f };
@@ -134,7 +136,15 @@ void initialize_data()
 
 void display_scene()
 {
-	planet.render(scene);
+    Planet::startPlanetRendering();
+    planetB.renderPlanet(scene);
+    planet.renderPlanet(scene);
+
+    Planet::startWaterRendering(scene);
+
+    planetB.renderWater(scene);
+    planet.renderWater(scene);
+
 }
 
 

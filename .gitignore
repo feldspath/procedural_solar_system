@@ -2,3 +2,4 @@ build/
 *.exe
 *.ilk
 imgui.ini
+*.user
