@@ -4,8 +4,7 @@
 
 #include "planet.hpp"
 #include "noises.hpp"
-
-#include "physics.h"
+#include "physics.hpp"
 
 
 using namespace vcl;
@@ -47,6 +46,7 @@ float deltaTime;
 
 Planet planet;
 Planet planetB;
+Planet planetC;
 
 int main(int, char* argv[])
 {
@@ -73,8 +73,7 @@ int main(int, char* argv[])
 	{
 		deltaTime = glfwGetTime() - previousTime;
 		previousTime = glfwGetTime();
-        planet.updatePhysics(deltaTime);
-        planetB.updatePhysics(deltaTime);
+        PhysicsComponent::update(deltaTime);
 
 		scene.light = scene.camera.position();
 		user.fps_record.update();
@@ -129,8 +128,9 @@ void initialize_data()
 	scene.camera.look_at({4,3,2}, {0,0,0}, {0,0,1});
 
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
-    planet = Planet(1.0f, 5e10, {2, 0, 0});
-    planetB = Planet(1.0f, 5, { -2, 0, 0 }, { 0, -1, 0 });
+    planet = Planet(2.0f, 5e11, {0, 0, 0});
+    planetB = Planet(1.0f, 5, { 7, 0, 0 }, { 0, -2.5f, 0 });
+    planetC = Planet(1.2f, 1e11, { -8, 0, 0 }, { 0, 2.5f, 0 });
 
 	// Light
 	scene.light = { 2.0f, 3.0f, 2.0f };
@@ -142,11 +142,13 @@ void display_scene()
     Planet::startPlanetRendering();
 	planet.renderPlanet(scene);
     planetB.renderPlanet(scene);
+    planetC.renderPlanet(scene);
    
     Planet::startWaterRendering(scene);
-	planet.renderWater(scene);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    planet.renderWater(scene);
     planetB.renderWater(scene);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    planetC.renderWater(scene);
     
 
 }

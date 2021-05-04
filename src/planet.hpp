@@ -3,7 +3,7 @@
 #include "vcl/vcl.hpp"
 #include "noises.hpp"
 #include "mesh_drawable_multitexture.hpp"
-#include "physics.h"
+#include "physics.hpp"
 
 class Planet {
 
@@ -11,6 +11,9 @@ private:
 
 	vcl::mesh m;
     static GLuint shader;
+
+    // Physics
+    unsigned int physics;
 
 public:
 
@@ -44,9 +47,6 @@ public:
 	float textureScale = 1.0f;
 	float textureSharpness = 5.0f;
 	float normalMapInfluence = 0.2f;
-
-	// Physics
-    PhysicsComponent physics;
 
 	Planet() {}
 
@@ -84,7 +84,7 @@ private:
 template <typename SCENE>
 void Planet::renderPlanet(SCENE const& scene) {
     setCustomUniforms();
-    visual.transform.translate = physics.position;
+    visual.transform.translate = PhysicsComponent::objects.at(physics).position;
     draw(visual, scene);
 }
 

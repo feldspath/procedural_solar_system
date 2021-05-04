@@ -54,7 +54,7 @@ Planet::Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity, int 
     visual.texture = planetTexture;
     updatePlanetMesh();
 
-    physics = PhysicsComponent(mass, position, velocity);
+    physics = PhysicsComponent::generatePhysicsComponent(mass, position, velocity);
 }
 
 void Planet::updatePlanetMesh() {
@@ -78,7 +78,6 @@ void Planet::setCustomUniforms() {
 void Planet::updatePhysics(float deltaTime) {
     vcl::rotation rot({ 0.0f, 0.0f, 1.0f }, deltaTime * rotateSpeed);
     visual.transform.rotate = rot * visual.transform.rotate;
-    physics.update(deltaTime);
 }
 
 void Planet::initPlanetRenderer(const unsigned int width, const unsigned int height) {
