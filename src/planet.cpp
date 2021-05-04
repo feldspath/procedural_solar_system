@@ -39,7 +39,7 @@ vec3 Planet::getPlanetRadiusAt(vec3& position) {
     return newPosition;
 }
 
-Planet::Planet(float r, int division) {
+Planet::Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity, int division) {
     radius = r;
     //m = mesh_primitive_sphere();
     m = mesh_icosphere(radius, division);
@@ -52,7 +52,9 @@ Planet::Planet(float r, int division) {
     image_raw const im = image_load_png("assets/moon_normal_map1.png");
     GLuint const planetTexture = opengl_texture_to_gpu(im, GL_REPEAT, GL_REPEAT);
     visual.texture = planetTexture;
-    updatePlanetMesh();    
+    updatePlanetMesh();
+
+    physics = PhysicsComponent(mass, position, velocity);
 }
 
 void Planet::updatePlanetMesh() {
@@ -76,9 +78,7 @@ void Planet::setCustomUniforms() {
 void Planet::updatePhysics(float deltaTime) {
     vcl::rotation rot({ 0.0f, 0.0f, 1.0f }, deltaTime * rotateSpeed);
     visual.transform.rotate = rot * visual.transform.rotate;
-
     physics.update(deltaTime);
-    visual.transform.translate = physics.position;
 }
 
 void Planet::initPlanetRenderer(const unsigned int width, const unsigned int height) {

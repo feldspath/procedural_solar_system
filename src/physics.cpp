@@ -1,17 +1,20 @@
 #include "physics.h"
 #include "vcl/vcl.hpp"
 #include <vector>
+#include <iostream>
 
 float const PhysicsComponent::G = 6.67430e-11;
-float PhysicsComponent::fixedDeltaTime = 0.05f;
+float PhysicsComponent::fixedDeltaTime = 0.02f;
 float PhysicsComponent::deltaTimeOffset;
-std::vector<PhysicsComponent*> PhysicsComponent::objects;
+std::vector<PhysicsComponent> PhysicsComponent::objects;
+unsigned int PhysicsComponent::objectCount = 0;
 
 PhysicsComponent::PhysicsComponent(float m, vcl::vec3 p, vcl::vec3 v) {
 	mass = m;
 	position = p;
 	velocity = v;
-	objects.push_back(this);
+    id = objectCount++;
+    objects.push_back(*this);
 }
 
 void PhysicsComponent::update(float deltaTime) {
@@ -24,14 +27,15 @@ void PhysicsComponent::update(float deltaTime) {
 
 void PhysicsComponent::singleUpdate() {
 	vcl::vec3 forces = { 0, 0, 0 };
-	for (PhysicsComponent* obj : objects) {
-		if (obj != this) {
-			float const dist = vcl::norm(position - obj->position);
-			forces -= obj->mass / (dist * dist) * vcl::normalize(position - obj->position);
+    int count = 0;
+    for (PhysicsComponent obj : objects) {
+        if (obj.id != id) {
+            count++;
+            float const dist = vcl::norm(position - obj.position);
+            forces -= obj.mass / (dist * dist) * vcl::normalize(position - obj.position);
 		}
 	}
-	forces *= mass * G;
-	velocity += forces * fixedDeltaTime;
+    forces *= G;
+    velocity += forces * fixedDeltaTime;
 	position += velocity * fixedDeltaTime;
-
 }

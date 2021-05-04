@@ -73,8 +73,9 @@ int main(int, char* argv[])
 	{
 		deltaTime = glfwGetTime() - previousTime;
 		previousTime = glfwGetTime();
-		planet.physics.update(deltaTime);
-		planetB.physics.update(deltaTime);
+        planet.updatePhysics(deltaTime);
+        planetB.updatePhysics(deltaTime);
+
 		scene.light = scene.camera.position();
 		user.fps_record.update();
 
@@ -128,11 +129,8 @@ void initialize_data()
 	scene.camera.look_at({4,3,2}, {0,0,0}, {0,0,1});
 
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
-    planet = Planet(1.0f);
-    planetB = Planet(1.0f);
-    
-	planet.physics = PhysicsComponent(5, { 1, 0, 0 }, { 0, 1, 0 });
-	planetB.physics = PhysicsComponent(2, { -2, 0, 0 }, { 0, -1, 0 });
+    planet = Planet(1.0f, 5e10, {2, 0, 0});
+    planetB = Planet(1.0f, 5, { -2, 0, 0 }, { 0, -1, 0 });
 
 	// Light
 	scene.light = { 2.0f, 3.0f, 2.0f };

@@ -5,6 +5,7 @@
 
 
 struct PhysicsComponent {
+    unsigned int id;
 	vcl::vec3 position;
 	vcl::vec3 velocity;
 	float mass;
@@ -12,7 +13,8 @@ struct PhysicsComponent {
 	static float const G;
 	static float fixedDeltaTime;
 	static float deltaTimeOffset;
-	static std::vector<PhysicsComponent*> objects;
+    static unsigned int objectCount;
+    static std::vector<PhysicsComponent> objects;
 	
 
 	PhysicsComponent() {}

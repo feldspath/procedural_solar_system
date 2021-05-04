@@ -46,11 +46,11 @@ public:
 	float normalMapInfluence = 0.2f;
 
 	// Physics
-	PhysicsComponent physics;
+    PhysicsComponent physics;
 
 	Planet() {}
 
-    Planet(float r, int division = 200);
+    Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity = {0, 0, 0}, int division=200);
 
 	template <typename SCENE>
     void renderPlanet(SCENE const& scene);
@@ -84,6 +84,7 @@ private:
 template <typename SCENE>
 void Planet::renderPlanet(SCENE const& scene) {
     setCustomUniforms();
+    visual.transform.translate = physics.position;
     draw(visual, scene);
 }
 
