@@ -5,6 +5,8 @@
 #include "planet.hpp"
 #include "noises.hpp"
 
+#include "physics.h"
+
 
 using namespace vcl;
 
@@ -71,7 +73,8 @@ int main(int, char* argv[])
 	{
 		deltaTime = glfwGetTime() - previousTime;
 		previousTime = glfwGetTime();
-		planet.rotatePlanet(deltaTime);
+		planet.physics.update(deltaTime);
+		planetB.physics.update(deltaTime);
 		scene.light = scene.camera.position();
 		user.fps_record.update();
 
@@ -127,7 +130,9 @@ void initialize_data()
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
     planet = Planet(1.0f);
     planetB = Planet(1.0f);
-    planetB.visual.transform.translate = {3.0f, 0.0f, 0.0f};
+    
+	planet.physics = PhysicsComponent(5, { 1, 0, 0 }, { 0, 1, 0 });
+	planetB.physics = PhysicsComponent(2, { -2, 0, 0 }, { 0, -1, 0 });
 
 	// Light
 	scene.light = { 2.0f, 3.0f, 2.0f };
@@ -137,13 +142,14 @@ void initialize_data()
 void display_scene()
 {
     Planet::startPlanetRendering();
+	planet.renderPlanet(scene);
     planetB.renderPlanet(scene);
-    planet.renderPlanet(scene);
-
+   
     Planet::startWaterRendering(scene);
-
+	planet.renderWater(scene);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
     planetB.renderWater(scene);
-    planet.renderWater(scene);
+    
 
 }
 

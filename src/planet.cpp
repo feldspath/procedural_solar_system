@@ -73,9 +73,12 @@ void Planet::setCustomUniforms() {
     opengl_uniform(shader, "normalMapInfluence", normalMapInfluence, false);
 }
 
-void Planet::rotatePlanet(float deltaTime) {
+void Planet::updatePhysics(float deltaTime) {
     vcl::rotation rot({ 0.0f, 0.0f, 1.0f }, deltaTime * rotateSpeed);
     visual.transform.rotate = rot * visual.transform.rotate;
+
+    physics.update(deltaTime);
+    visual.transform.translate = physics.position;
 }
 
 void Planet::initPlanetRenderer(const unsigned int width, const unsigned int height) {

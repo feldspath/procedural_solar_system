@@ -3,6 +3,7 @@
 #include "vcl/vcl.hpp"
 #include "noises.hpp"
 #include "mesh_drawable_multitexture.hpp"
+#include "physics.h"
 
 class Planet {
 
@@ -44,6 +45,9 @@ public:
 	float textureSharpness = 5.0f;
 	float normalMapInfluence = 0.2f;
 
+	// Physics
+	PhysicsComponent physics;
+
 	Planet() {}
 
     Planet(float r, int division = 200);
@@ -59,7 +63,7 @@ public:
 	void setCustomUniforms();
 	void setTexture(GLuint texture);
 
-	void rotatePlanet(float deltaTime);
+	void updatePhysics(float deltaTime);
 
 	vcl::vec3 getPlanetRadiusAt(vcl::vec3& position);
 
@@ -100,4 +104,5 @@ void Planet::startWaterRendering(SCENE const& scene) {
     // Matrices
     opengl_uniform(postProcessingQuad.shader, "viewMatrix", scene.camera.matrix_view(), true);
     opengl_uniform(postProcessingQuad.shader, "perspectiveInverse", inverse(scene.projection), true);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 }
