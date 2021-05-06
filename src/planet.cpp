@@ -75,7 +75,7 @@ void Planet::setCustomUniforms() {
     opengl_uniform(shader, "normalMapInfluence", normalMapInfluence, false);
 }
 
-void Planet::updatePhysics(float deltaTime) {
+void Planet::updateRotation(float deltaTime) {
     vcl::rotation rot({ 0.0f, 0.0f, 1.0f }, deltaTime * rotateSpeed);
     visual.transform.rotate = rot * visual.transform.rotate;
 }
@@ -94,6 +94,7 @@ void Planet::initPlanetRenderer(const unsigned int width, const unsigned int hei
 
     GLuint const shader_screen_render = opengl_create_shader_program(read_text_file("shaders/planet/water.vert.glsl"), read_text_file("shaders/planet/water.frag.glsl"));
     postProcessingQuad.shader = shader_screen_render;
+    buildTextures(width, height);
 }
 
 void Planet::buildFbo(const unsigned int width, const unsigned int height) {
@@ -138,4 +139,67 @@ void Planet::startPlanetRendering() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
+void Planet::displayInterface() {
+    bool update = false;
+    if (ImGui::CollapsingHeader("Planet parameters")) {
 
+        ImGui::SliderFloat("Rotation speed", &rotateSpeed, 0.0f, 3.0f);
+
+        float col[3] = { visual.shading.color.x,visual.shading.color.y , visual.shading.color.z };
+        ImGui::ColorEdit3("Planet color", col);
+        visual.shading.color = vec3(col[0], col[1], col[2]);
+
+
+        if (ImGui::TreeNode("Terrain generation")) {
+            update |= ImGui::SliderFloat("Radius", &radius, 0.0f, 3.0f);
+            if (ImGui::TreeNode("Continent noise")) {
+                update |= displayPerlinNoiseGui(continentParameters);
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode("Mountain noise")) {
+                update |= ImGui::SliderFloat("Sharpness", &mountainSharpness, 0.1f, 5.0f);
+                update |= displayPerlinNoiseGui(mountainsParameters);
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode("Oceans")) {
+                update |= ImGui::SliderFloat("Floor depth", &oceanFloorDepth, 0.0f, 1.0f);
+                update |= ImGui::SliderFloat("Floor smoothing", &oceanFloorSmoothing, 0.1f, 20.0f);
+                update |= ImGui::SliderFloat("Depth multiplier", &oceanDepthMultiplier, 0.0f, 10.0f);
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode("Moutains Mask")) {
+                update |= ImGui::SliderFloat("Moutains blend", &mountainsBlend, 0.1f, 20.0f);
+                update |= ImGui::SliderFloat("Vertical shift", &maskShift, -2.0f, 2.0f);
+                update |= displayPerlinNoiseGui(maskParameters);
+                ImGui::TreePop();
+            }
+
+            ImGui::TreePop();
+        }
+        if (ImGui::TreeNode("Water")) {
+            ImGui::SliderFloat("Water level", &waterLevel, 0.0f, 3.0f);
+
+            // Water Color
+            float colD[3] = { waterColorSurface.x, waterColorSurface.y , waterColorSurface.z };
+            ImGui::ColorEdit3("Surface water", colD);
+            waterColorSurface = vec3(colD[0], colD[1], colD[2]);
+            float colS[3] = { waterColorDeep.x, waterColorDeep.y , waterColorDeep.z };
+            ImGui::ColorEdit3("Deep water", colS);
+            waterColorDeep = vec3(colS[0], colS[1], colS[2]);
+
+            ImGui::SliderFloat("Depth multiplier", &depthMultiplier, 0.0f, 10.0f);
+            ImGui::SliderFloat("Water blend multipler", &waterBlendMultiplier, 0.0f, 100.0f);
+            ImGui::TreePop();
+
+        }
+        if (ImGui::TreeNode("Texture")) {
+            ImGui::SliderFloat("Scale", &textureScale, 0.1f, 2.0f);
+            ImGui::SliderFloat("Sharpness", &textureSharpness, 0.1f, 5.0f);
+            ImGui::SliderFloat("Normal map influence", &normalMapInfluence, 0.0f, 1.0f);
+            ImGui::TreePop();
+        }
+    }
+
+    if (update)
+        updatePlanetMesh();
+}

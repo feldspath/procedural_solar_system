@@ -30,7 +30,8 @@ void PhysicsComponent::update(float deltaTime) {
 
 void PhysicsComponent::singleUpdate() {
     int n = objects.size();
-    vcl::vec3 newPositions[n];
+    std::vector<vcl::vec3> newPositions;
+    newPositions.resize(n);
     for (int i = 0; i < n; i++) {
         PhysicsComponent& current = objects.at(i);
         vcl::vec3 forces = { 0, 0, 0 };

@@ -5,7 +5,9 @@
 #include "planet.hpp"
 #include "noises.hpp"
 #include "physics.hpp"
+#include "skybox.hpp"
 
+#define N_PLANETS 5
 
 using namespace vcl;
 
@@ -44,9 +46,10 @@ const unsigned int SCR_HEIGHT = 1024;
 float previousTime;
 float deltaTime;
 
-Planet planet;
-Planet planetB;
-Planet planetC;
+Planet planets[N_PLANETS];
+int planet_index;
+
+Skybox skybox;
 
 int main(int, char* argv[])
 {
@@ -74,6 +77,8 @@ int main(int, char* argv[])
 		deltaTime = glfwGetTime() - previousTime;
 		previousTime = glfwGetTime();
         PhysicsComponent::update(deltaTime);
+		for (int i = 0; i < N_PLANETS; i++)
+			planets[i].updateRotation(deltaTime);
 
 		scene.light = scene.camera.position();
 		user.fps_record.update();
@@ -128,27 +133,34 @@ void initialize_data()
 	scene.camera.look_at({4,3,2}, {0,0,0}, {0,0,1});
 
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
-    planet = Planet(2.0f, 5e11, {0, 0, 0});
-    planetB = Planet(1.0f, 5, { 7, 0, 0 }, { 0, -2.5f, 0 });
-    planetC = Planet(1.2f, 1e11, { -8, 0, 0 }, { 0, 2.5f, 0 });
+
+	planets[0] = Planet(2.0f, 1e13, { 0, 0, 0 });
+	for (int i = 1; i < N_PLANETS; i++) {
+		planets[i] = Planet(0.5f, 1e9, { 6 * i, 0, 0 }, {0, 1.0/i * 10, 0});
+	}
+	planet_index = 0;
 
 	// Light
 	scene.light = { 2.0f, 3.0f, 2.0f };
+
+	skybox = Skybox("assets/cubemap.png");
 }
 
 
 void display_scene()
 {
     Planet::startPlanetRendering();
-	planet.renderPlanet(scene);
-    planetB.renderPlanet(scene);
-    planetC.renderPlanet(scene);
+	for (int i = 0; i < N_PLANETS; i++)
+		planets[i].renderPlanet(scene);
+
+	skybox.render(scene);
    
     Planet::startWaterRendering(scene);
-    planet.renderWater(scene);
-    planetB.renderWater(scene);
+	for (int i = 0; i < N_PLANETS-1; i++)
+		planets[i].renderWater(scene);
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    planetC.renderWater(scene);
+	planets[N_PLANETS-1].renderWater(scene);
     
 
 }
@@ -163,68 +175,8 @@ void display_interface()
 	ImGui::SliderFloat3("Light position", camPos, 0.0f, 10.0f);
 	scene.light = vec3(camPos[0], camPos[1], camPos[2]);
 
-	bool update = false;
-	if (ImGui::CollapsingHeader("Planet parameters")) {
-
-		ImGui::SliderFloat("Rotation speed", &planet.rotateSpeed, 0.0f, 3.0f);
-
-		float col[3] = { planet.visual.shading.color.x, planet.visual.shading.color.y , planet.visual.shading.color.z };
-		ImGui::ColorEdit3("Planet color", col);
-		planet.visual.shading.color = vec3(col[0], col[1], col[2]);
-
-
-		if (ImGui::TreeNode("Terrain generation")) {
-			update |= ImGui::SliderFloat("Radius", &planet.radius, 0.0f, 3.0f);
-			if (ImGui::TreeNode("Continent noise")) {
-				update |= displayPerlinNoiseGui(planet.continentParameters);
-				ImGui::TreePop();
-			}
-			if (ImGui::TreeNode("Mountain noise")) {
-				update |= ImGui::SliderFloat("Sharpness", &planet.mountainSharpness, 0.1f, 5.0f);
-				update |= displayPerlinNoiseGui(planet.mountainsParameters);
-				ImGui::TreePop();
-			}
-			if (ImGui::TreeNode("Oceans")) {
-				update |= ImGui::SliderFloat("Floor depth", &planet.oceanFloorDepth, 0.0f, 1.0f);
-				update |= ImGui::SliderFloat("Floor smoothing", &planet.oceanFloorSmoothing, 0.1f, 20.0f);
-				update |= ImGui::SliderFloat("Depth multiplier", &planet.oceanDepthMultiplier, 0.0f, 10.0f);
-				ImGui::TreePop();
-			}
-			if (ImGui::TreeNode("Moutains Mask")) {
-				update |= ImGui::SliderFloat("Moutains blend", &planet.mountainsBlend, 0.1f, 20.0f);
-				update |= ImGui::SliderFloat("Vertical shift", &planet.maskShift, -2.0f, 2.0f);
-				update |= displayPerlinNoiseGui(planet.maskParameters);
-				ImGui::TreePop();
-			}
-
-			ImGui::TreePop();
-		}
-		//if (ImGui::TreeNode("Water")) {
-		//	//ImGui::SliderFloat("Water level", &waterPostProc.waterLevel, 0.0f, 3.0f);
-
-		//	// Water Color
-		//	float colD[3] = {waterPostProc.waterColorSurface.x, waterPostProc.waterColorSurface.y , waterPostProc.waterColorSurface.z};
-		//	ImGui::ColorEdit3("Surface water", colD);
-		//	waterPostProc.waterColorSurface = vec3(colD[0], colD[1], colD[2]);
-		//	float colS[3] = { waterPostProc.waterColorDeep.x, waterPostProc.waterColorDeep.y , waterPostProc.waterColorDeep.z };
-		//	ImGui::ColorEdit3("Deep water", colS);
-		//	waterPostProc.waterColorDeep = vec3(colS[0], colS[1], colS[2]);
-
-		//	ImGui::SliderFloat( "Depth multiplier", &waterPostProc.depthMultiplier, 0.0f, 10.0f);
-		//	ImGui::SliderFloat("Water blend multipler", &waterPostProc.waterBlendMultiplier, 0.0f, 100.0f);
-		//	ImGui::TreePop();
-
-		//}
-		if (ImGui::TreeNode("Texture")) {
-			ImGui::SliderFloat("Scale", &planet.textureScale, 0.1f, 2.0f);
-			ImGui::SliderFloat("Sharpness", &planet.textureSharpness, 0.1f, 5.0f);
-			ImGui::SliderFloat("Normal map influence", &planet.normalMapInfluence, 0.0f, 1.0f);
-			ImGui::TreePop();
-		}
-	}
-
-	if (update)
-		planet.updatePlanetMesh();
+	ImGui::SliderInt("Planet index", &planet_index, 0, N_PLANETS - 1);
+	planets[planet_index].displayInterface();
 }
 
 
@@ -233,7 +185,7 @@ void window_size_callback(GLFWwindow* , int width, int height)
 	glViewport(0, 0, width, height);
 	float const aspect = width / static_cast<float>(height);
 	scene.projection = projection_perspective(pi/3, aspect, 0.1f, 100.0f);
-	planet.buildTextures(width, height);
+	Planet::buildTextures(width, height);
 }
 	
 

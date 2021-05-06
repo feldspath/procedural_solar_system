@@ -43,6 +43,13 @@ public:
 	float oceanFloorSmoothing = 1.0f;
 	float oceanDepthMultiplier = 2.0f;
 
+    // Water
+    float waterLevel = 1.0f;
+    vcl::vec3 waterColorSurface = { 0.0f, 0.2f, 1.0f };
+    vcl::vec3 waterColorDeep = { 0.0f, 0.0f, 0.0f };
+    float depthMultiplier = 6.0f;
+    float waterBlendMultiplier = 60.0f;
+
 	// Texture
 	float textureScale = 1.0f;
 	float textureSharpness = 5.0f;
@@ -61,11 +68,11 @@ public:
 	void updatePlanetMesh();
 
 	void setCustomUniforms();
-	void setTexture(GLuint texture);
 
-	void updatePhysics(float deltaTime);
+	void updateRotation(float deltaTime);
 
 	vcl::vec3 getPlanetRadiusAt(vcl::vec3& position);
+    void Planet::displayInterface();
 
     static void initPlanetRenderer(const unsigned int width, const unsigned int height);
     static void buildTextures(const unsigned int width, const unsigned int height);
@@ -92,6 +99,11 @@ template <typename SCENE>
 void Planet::renderWater(SCENE const& scene) {
     vcl::vec4 center = vcl::vec4(visual.transform.translate, 1.0f);
     opengl_uniform(postProcessingQuad.shader, "planetCenter", center);
+    opengl_uniform(postProcessingQuad.shader, "oceanLevel", waterLevel);
+    opengl_uniform(postProcessingQuad.shader, "depthMultiplier", depthMultiplier);
+    opengl_uniform(postProcessingQuad.shader, "waterBlendMultiplier", waterBlendMultiplier);
+    opengl_uniform(postProcessingQuad.shader, "waterColorDeep", waterColorDeep);
+    opengl_uniform(postProcessingQuad.shader, "waterColorSurface", waterColorSurface);
     draw(postProcessingQuad, scene);
 }
 
