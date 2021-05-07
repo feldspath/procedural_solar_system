@@ -6,6 +6,7 @@
 
 using namespace vcl;
 
+// Helper functions
 static float smoothMax(float a, float b, float k) {
     return std::log(std::exp(a * k) + std::exp(b * k)) / k;
 }
@@ -14,11 +15,14 @@ static float blend(float noise, float blending) {
     return std::atan(noise * blending) / pi + 0.5f;
 }
 
+// Planet members declaration
 mesh_drawable_multitexture Planet::postProcessingQuad;
 GLuint Planet::shader = -1;
 GLuint Planet::fbo;
 GLuint Planet::depth_buffer;
 GLuint Planet::intermediate_image;
+GLuint Planet::intermediate_image_bis;
+bool Planet::base_intermediate_image;
 
 vec3 Planet::getPlanetRadiusAt(vec3& position) {
     const vec3 posOnUnitSphere = normalize(position);
@@ -47,12 +51,13 @@ Planet::Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity, int 
     visual = mesh_drawable(m, shader);
     visual.shading.color = { 0.4, 0.35, 0.25 };
     visual.shading.phong.specular = 0.0f;
+    updatePlanetMesh();
 
     //image_raw const im = image_load_png("assets/checker_texture.png");
     image_raw const im = image_load_png("assets/moon_normal_map1.png");
     GLuint const planetTexture = opengl_texture_to_gpu(im, GL_REPEAT, GL_REPEAT);
     visual.texture = planetTexture;
-    updatePlanetMesh();
+    
 
     physics = PhysicsComponent::generatePhysicsComponent(mass, position, velocity);
 }
@@ -101,6 +106,7 @@ void Planet::buildFbo(const unsigned int width, const unsigned int height) {
     glGenFramebuffers(1, &fbo);
     glGenTextures(1, &depth_buffer);
     glGenTextures(1, &intermediate_image);
+    glGenTextures(1, &intermediate_image_bis);
 
     buildTextures(width, height);
 
@@ -123,6 +129,14 @@ void Planet::buildTextures(const unsigned int width, const unsigned int height) 
 
     opengl_check;
 
+    // Texture color buffer
+    glBindTexture(GL_TEXTURE_2D, intermediate_image_bis);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    opengl_check;
+
     // Texture depth buffer
     glBindTexture(GL_TEXTURE_2D, depth_buffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
@@ -135,15 +149,37 @@ void Planet::buildTextures(const unsigned int width, const unsigned int height) 
 void Planet::startPlanetRendering() {
     glEnable(GL_DEPTH_TEST);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, intermediate_image, 0);
+    base_intermediate_image = true;
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void Planet::switchIntermediateTexture() {
+    if (base_intermediate_image) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, intermediate_image_bis, 0);
+        postProcessingQuad.texture = intermediate_image;
+    }
+    else {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, intermediate_image, 0);
+        postProcessingQuad.texture = intermediate_image_bis;
+    }
+    base_intermediate_image = !base_intermediate_image;
+}
+
+void Planet::renderFinalPlanet() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    if (base_intermediate_image)
+        postProcessingQuad.texture = intermediate_image;
+    else
+        postProcessingQuad.texture = intermediate_image_bis;
 }
 
 void Planet::displayInterface() {
     bool update = false;
     if (ImGui::CollapsingHeader("Planet parameters")) {
 
-        ImGui::SliderFloat("Rotation speed", &rotateSpeed, 0.0f, 3.0f);
+        ImGui::SliderFloat("Rotation speed", &rotateSpeed, -5.0f, 5.0f);
 
         float col[3] = { visual.shading.color.x,visual.shading.color.y , visual.shading.color.z };
         ImGui::ColorEdit3("Planet color", col);

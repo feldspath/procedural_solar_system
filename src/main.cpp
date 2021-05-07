@@ -80,7 +80,7 @@ int main(int, char* argv[])
 		for (int i = 0; i < N_PLANETS; i++)
 			planets[i].updateRotation(deltaTime);
 
-		scene.light = scene.camera.position();
+		//scene.light = scene.camera.position();
 		user.fps_record.update();
 
 		imgui_create_frame();
@@ -141,7 +141,7 @@ void initialize_data()
 	planet_index = 0;
 
 	// Light
-	scene.light = { 2.0f, 3.0f, 2.0f };
+	scene.light = { 0.0f, 0.0f, 0.0f };
 
 	skybox = Skybox("assets/cubemap.png");
 }
@@ -156,10 +156,12 @@ void display_scene()
 	skybox.render(scene);
    
     Planet::startWaterRendering(scene);
-	for (int i = 0; i < N_PLANETS-1; i++)
+	for (int i = 0; i < N_PLANETS - 1; i++) {
+		Planet::switchIntermediateTexture();
 		planets[i].renderWater(scene);
+	}
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	Planet::renderFinalPlanet();
 	planets[N_PLANETS-1].renderWater(scene);
     
 

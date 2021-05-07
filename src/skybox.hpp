@@ -21,13 +21,13 @@ void Skybox::render(SCENE const& scene) {
 	vcl::mat4 posView = inverse(frame(scene.camera.orientation(), { 0, 0, 0 })).matrix();
 
 	// Send uniforms for this shader
-	opengl_uniform(cube.shader, "view", posView, false);
-	opengl_uniform(cube.shader, "projection", scene.projection, false);
+	vcl::opengl_uniform(cube.shader, "view", posView, false);
+	vcl::opengl_uniform(cube.shader, "projection", scene.projection, false);
 
 	// Set texture
 	glActiveTexture(GL_TEXTURE0); opengl_check;
 	glBindTexture(GL_TEXTURE_2D, cube.texture); opengl_check;
-	opengl_uniform(cube.shader, "image_texture", 0, false);  opengl_check;
+	vcl::opengl_uniform(cube.shader, "image_texture", 0, false);  opengl_check;
 
 	// Call draw function
 	glBindVertexArray(cube.vao);   opengl_check;

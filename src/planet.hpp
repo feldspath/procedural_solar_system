@@ -9,21 +9,23 @@ class Planet {
 
 private:
 
-	vcl::mesh m;
-    static GLuint shader;
-
     // Physics
     unsigned int physics;
 
-public:
+    // Rendering
+    vcl::mesh m;
+    vcl::mesh_drawable visual;
+    static GLuint shader;
 
-	vcl::mesh_drawable visual;
-
+    // Post processing
     static mesh_drawable_multitexture postProcessingQuad;
     static GLuint fbo;                // Frame buffer for multi-pass render
     static GLuint depth_buffer;       // Depth buffer used when rendered in the frame buffer
     static GLuint intermediate_image; // Texture of the rendered color image
+    static GLuint intermediate_image_bis;
+    static bool base_intermediate_image;
 
+public:
 	float radius = 1.0f;
 	float rotateSpeed = 0.0f;
 
@@ -55,32 +57,29 @@ public:
 	float textureSharpness = 5.0f;
 	float normalMapInfluence = 0.2f;
 
+    // Constructors
 	Planet() {}
-
     Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity = {0, 0, 0}, int division=200);
 
-	template <typename SCENE>
-    void renderPlanet(SCENE const& scene);
-
-    template <typename SCENE>
-    void renderWater(SCENE const& scene);
-
+    // Update functions
+    vcl::vec3 getPlanetRadiusAt(vcl::vec3& position);
 	void updatePlanetMesh();
-
-	void setCustomUniforms();
-
 	void updateRotation(float deltaTime);
 
-	vcl::vec3 getPlanetRadiusAt(vcl::vec3& position);
+    // Rendering
     void Planet::displayInterface();
+    
+    void setCustomUniforms();
+    template <typename SCENE> void renderPlanet(SCENE const& scene);
+    template <typename SCENE> void renderWater(SCENE const& scene);
 
+    // Post processing
     static void initPlanetRenderer(const unsigned int width, const unsigned int height);
     static void buildTextures(const unsigned int width, const unsigned int height);
-
     static void startPlanetRendering();
-
-    template <typename SCENE>
-    static void startWaterRendering(SCENE const& scene);
+    static void switchIntermediateTexture();
+    static void renderFinalPlanet();
+    template <typename SCENE> static void startWaterRendering(SCENE const& scene);
 
 private:
     static void buildFbo(const unsigned int width, const unsigned int height);
@@ -92,30 +91,29 @@ template <typename SCENE>
 void Planet::renderPlanet(SCENE const& scene) {
     setCustomUniforms();
     visual.transform.translate = PhysicsComponent::objects.at(physics).position;
-    draw(visual, scene);
+    vcl::draw(visual, scene);
 }
 
 template <typename SCENE>
 void Planet::renderWater(SCENE const& scene) {
     vcl::vec4 center = vcl::vec4(visual.transform.translate, 1.0f);
-    opengl_uniform(postProcessingQuad.shader, "planetCenter", center);
-    opengl_uniform(postProcessingQuad.shader, "oceanLevel", waterLevel);
-    opengl_uniform(postProcessingQuad.shader, "depthMultiplier", depthMultiplier);
-    opengl_uniform(postProcessingQuad.shader, "waterBlendMultiplier", waterBlendMultiplier);
-    opengl_uniform(postProcessingQuad.shader, "waterColorDeep", waterColorDeep);
-    opengl_uniform(postProcessingQuad.shader, "waterColorSurface", waterColorSurface);
+    vcl::opengl_uniform(postProcessingQuad.shader, "planetCenter", center);
+    vcl::opengl_uniform(postProcessingQuad.shader, "oceanLevel", waterLevel * radius);
+    vcl::opengl_uniform(postProcessingQuad.shader, "depthMultiplier", depthMultiplier);
+    vcl::opengl_uniform(postProcessingQuad.shader, "waterBlendMultiplier", waterBlendMultiplier);
+    vcl::opengl_uniform(postProcessingQuad.shader, "waterColorDeep", waterColorDeep);
+    vcl::opengl_uniform(postProcessingQuad.shader, "waterColorSurface", waterColorSurface);
     draw(postProcessingQuad, scene);
 }
 
 template <typename SCENE>
 void Planet::startWaterRendering(SCENE const& scene) {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST);
 
     glUseProgram(postProcessingQuad.shader);
 
     // Matrices
-    opengl_uniform(postProcessingQuad.shader, "viewMatrix", scene.camera.matrix_view(), true);
-    opengl_uniform(postProcessingQuad.shader, "perspectiveInverse", inverse(scene.projection), true);
+    vcl::opengl_uniform(postProcessingQuad.shader, "viewMatrix", scene.camera.matrix_view(), true);
+    vcl::opengl_uniform(postProcessingQuad.shader, "perspectiveInverse", inverse(scene.projection), true);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 }
