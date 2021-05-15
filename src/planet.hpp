@@ -29,6 +29,12 @@ public:
 	float radius = 1.0f;
 	float rotateSpeed = 0.0f;
 
+    // Colors
+    vcl::vec3 flatLowColor = { 1.0f, 1.0f, 1.0f };
+    vcl::vec3 flatHighColor = { 0.8f, 1.0f, 1.0f };
+    vcl::vec3 steepColor = { 0.4f, 0.2f, 0.0f };
+    float maxSlope = 0.3f;
+
 	// Continent
 	perlin_noise_parameters continentParameters;
 
@@ -59,10 +65,13 @@ public:
 
     // Constructors
 	Planet() {}
-    Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity = {0, 0, 0}, int division=200);
+    Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity = {0, 0, 0}, int division=200, bool update_now=true);
+
+    // Getters
+    vcl::vec3 getPosition();
 
     // Update functions
-    vcl::vec3 getPlanetRadiusAt(vcl::vec3& position);
+    vcl::vec3 getPlanetRadiusAt(const vcl::vec3& posOnUnitSphere);
 	void updatePlanetMesh();
 	void updateRotation(float deltaTime);
 
@@ -83,6 +92,11 @@ public:
 
 private:
     static void buildFbo(const unsigned int width, const unsigned int height);
+
+public:
+
+    void exportToFile(const char* path);
+    void importFromFile(const char* path);
 	
 
 };

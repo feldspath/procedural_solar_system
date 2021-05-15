@@ -7,7 +7,7 @@
 #include "physics.hpp"
 #include "skybox.hpp"
 
-#define N_PLANETS 5
+#define N_PLANETS 4
 
 using namespace vcl;
 
@@ -58,7 +58,7 @@ int main(int, char* argv[])
 	int const height = SCR_HEIGHT;
 	GLFWwindow* window = create_window(width, height);
 	window_size_callback(window, width, height);
-	std::cout << opengl_info_display() << std::endl;;
+	std::cout << opengl_info_display() << std::endl;
 
 	imgui_init(window);
 	glfwSetCursorPosCallback(window, mouse_move_callback);
@@ -79,8 +79,8 @@ int main(int, char* argv[])
         PhysicsComponent::update(deltaTime);
 		for (int i = 0; i < N_PLANETS; i++)
 			planets[i].updateRotation(deltaTime);
-
-		//scene.light = scene.camera.position();
+		scene.camera.center_of_rotation = planets[planet_index].getPosition();
+		scene.light = scene.camera.position();
 		user.fps_record.update();
 
 		imgui_create_frame();
@@ -134,16 +134,23 @@ void initialize_data()
 
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
 
-	planets[0] = Planet(2.0f, 1e13, { 0, 0, 0 });
-	for (int i = 1; i < N_PLANETS; i++) {
-		planets[i] = Planet(0.5f, 1e9, { 6 * i, 0, 0 }, {0, 1.0/i * 10, 0});
-	}
-	planet_index = 0;
+	float sun_mass = 1e12;
+
+	planets[0] = Planet(2.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 100, false);
+	planets[1] = Planet(1.0f, 1e7, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 500, false);
+	planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 600, false);
+	planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, true);
+
+	planet_index = 2;
 
 	// Light
 	scene.light = { 0.0f, 0.0f, 0.0f };
 
 	skybox = Skybox("assets/cubemap.png");
+
+	planets[0].importFromFile("planets/sun.txt");
+	planets[1].importFromFile("planets/rocky.txt");
+	planets[2].importFromFile("planets/earth.txt");
 }
 
 

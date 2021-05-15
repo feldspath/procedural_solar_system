@@ -7,7 +7,7 @@ struct perlin_noise_parameters
 {
 	float persistency = 0.35f;
 	float frequency_gain = 2.0f;
-	int octave = 6;
+	float octave = 6;
 
 	float center[3] = { 0.0f, 0.0f, 0.0f };
 };

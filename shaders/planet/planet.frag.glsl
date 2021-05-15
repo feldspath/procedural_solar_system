@@ -32,6 +32,10 @@ uniform float textureScale = 1.0f;
 uniform float textureSharpness = 1.0f;
 uniform float normalMapInfluence = 0.2f;
 
+uniform vec3 steepColor;
+uniform vec3 flatLowColor;
+uniform vec3 flatHighColor;
+
 vec4 colorFromTriplanarMapping() {
   vec2 uvxy = localCoords.xy / textureScale;
   vec2 uvyz = localCoords.yz / textureScale;
@@ -68,7 +72,19 @@ void main()
 
   vec4 color_image_texture=vec4(1.0,1.0,1.0,1.0);
   //vec4 color_image_texture=textureSample;
-	vec3 color_object  = fragment.color * color * color_image_texture.rgb;
+
+	//vec3 color_object  = fragment.color * color * color_image_texture.rgb;
+  float altitude = fragment.color.x * 2-1.0;
+  float slopeBlending = fragment.color.y;
+  // vec3 slopeColor = mix(flatColor, steepColor, slopeBlending);
+  // vec3 heightColor = mix(flatColor, steepColor, clamp(altitude / 0.1, 0.0, 1.0));
+  // vec3 color_object = color*mix(slopeColor, heightColor, 0.8);
+  vec3 plateauColor = mix(flatLowColor, flatHighColor, clamp(altitude / 0.1, 0.0, 1.0));
+  vec3 color_object = color*mix(plateauColor, steepColor, slopeBlending);
+
+
+
+
 	vec3 color_shading = (Ka + Kd * diffuse) * color_object + Ks * specular * vec3(1.0, 1.0, 1.0);
 
 	FragColor = vec4(color_shading, alpha * color_image_texture.a);

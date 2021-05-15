@@ -1,3 +1,8 @@
+#include <stdlib.h>
+#include <iostream>
+#include <fstream>
+#include <string>
+
 #include "planet.hpp"
 #include "icosphere.hpp"
 #include "vcl/vcl.hpp"
@@ -24,9 +29,7 @@ GLuint Planet::intermediate_image;
 GLuint Planet::intermediate_image_bis;
 bool Planet::base_intermediate_image;
 
-vec3 Planet::getPlanetRadiusAt(vec3& position) {
-    const vec3 posOnUnitSphere = normalize(position);
-
+vec3 Planet::getPlanetRadiusAt(const vec3& posOnUnitSphere) {
     // Continent (simple perlin noise)
     float const perlin_noise = perlinNoise(posOnUnitSphere, continentParameters);
     
@@ -43,28 +46,53 @@ vec3 Planet::getPlanetRadiusAt(vec3& position) {
     return newPosition;
 }
 
-Planet::Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity, int division) {
+Planet::Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity, int division, bool update_now) {
     radius = r;
     //m = mesh_primitive_sphere();
     m = mesh_icosphere(radius, division);
 
     visual = mesh_drawable(m, shader);
-    visual.shading.color = { 0.4, 0.35, 0.25 };
+    visual.shading.color = { 1.0f, 1.0f, 1.0f };
     visual.shading.phong.specular = 0.0f;
-    updatePlanetMesh();
+    if (update_now)
+        updatePlanetMesh();
 
     //image_raw const im = image_load_png("assets/checker_texture.png");
     image_raw const im = image_load_png("assets/moon_normal_map1.png");
     GLuint const planetTexture = opengl_texture_to_gpu(im, GL_REPEAT, GL_REPEAT);
     visual.texture = planetTexture;
+
+    visual.shading.phong.ambient = 0.01f;
     
 
     physics = PhysicsComponent::generatePhysicsComponent(mass, position, velocity);
 }
 
 void Planet::updatePlanetMesh() {
+    continentParameters.octave = (int)continentParameters.octave;
+    mountainsParameters.octave = (int)mountainsParameters.octave;
+    maskParameters.octave = (int)maskParameters.octave;
+
     for (int i = 0; i < (int)m.position.size(); i++) {
-        m.position[i] = getPlanetRadiusAt(m.position[i]);
+        // Position
+        const vec3 posOnUnitSphere = normalize(m.position[i]);
+        m.position[i] = getPlanetRadiusAt(posOnUnitSphere);
+        float height = norm(m.position[i]);
+
+        // Color
+        float stepSize = 0.02f;
+        vec3 direction;
+        if (std::abs(posOnUnitSphere.z) < 1.0f - 0.00001f)
+            direction = normalize(cross(posOnUnitSphere, vec3(0.0f, 0.0f, 1.0f)));
+        else
+            direction = normalize(cross(posOnUnitSphere, vec3((float)rand() / RAND_MAX, (float)rand() / RAND_MAX, (float)rand() / RAND_MAX)));
+        
+        float slopeEstimate = std::abs(norm(getPlanetRadiusAt(normalize(posOnUnitSphere + stepSize * direction))) - height)/stepSize ;
+        direction = cross(posOnUnitSphere, direction);
+        slopeEstimate = std::max(slopeEstimate, std::abs(norm(getPlanetRadiusAt(normalize(posOnUnitSphere + stepSize * direction))) - height) / stepSize);
+        float blending = std::min(slopeEstimate / (maxSlope * radius), 1.0f);
+        m.color[i] = vec3(height/(2*radius), blending, 0.0f);
+
     }
     m.compute_normal();
 
@@ -73,17 +101,104 @@ void Planet::updatePlanetMesh() {
     visual.update_color(m.color);
 }
 
+vcl::vec3 Planet::getPosition() {
+    return PhysicsComponent::objects[physics].position;
+}
+
 void Planet::setCustomUniforms() {
     glUseProgram(shader);
     opengl_uniform(shader, "textureScale", textureScale);
     opengl_uniform(shader, "textureSharpness", textureSharpness);
     opengl_uniform(shader, "normalMapInfluence", normalMapInfluence, false);
+    opengl_uniform(shader, "steepColor", steepColor);
+    opengl_uniform(shader, "flatLowColor", flatLowColor);
+    opengl_uniform(shader, "flatHighColor", flatHighColor);
 }
 
 void Planet::updateRotation(float deltaTime) {
     vcl::rotation rot({ 0.0f, 0.0f, 1.0f }, deltaTime * rotateSpeed);
     visual.transform.rotate = rot * visual.transform.rotate;
 }
+
+static void writeValue(const vec3& val, size_t offset, std::ofstream& file) {
+    file << offset << ':' << val.x << ',' << val.y << ',' << val.z << '\n';
+}
+
+static void writeValue(const float& val, size_t offset, std::ofstream& file) {
+    file << offset << ':' << val << '\n';
+}
+
+static void writeValue(const perlin_noise_parameters& val, size_t offset, std::ofstream& file) {
+    file << offset << ':'
+         << val.persistency << ','
+         << val.frequency_gain << ','
+         << val.octave << ','
+         << val.center[0] << ',' << val.center[1] << ',' << val.center[2]
+         << '\n';
+}
+
+void Planet::exportToFile(const char* path) {
+    std::ofstream file(path);
+    if (!file.is_open()) {
+        std::cerr << "ERROR : failed to open file at path " << path << std::endl;
+        return;
+    }
+    std::cout << "Writing to file " << path << std::endl;
+    writeValue(radius,               offsetof(Planet, radius), file);
+    writeValue(rotateSpeed,          offsetof(Planet, rotateSpeed), file);
+    writeValue(flatLowColor,         offsetof(Planet, flatLowColor), file);
+    writeValue(flatHighColor,        offsetof(Planet, flatHighColor), file);
+    writeValue(steepColor,           offsetof(Planet, steepColor), file);
+    writeValue(maxSlope,             offsetof(Planet, maxSlope), file);
+    writeValue(continentParameters,  offsetof(Planet, continentParameters), file);
+    writeValue(mountainsParameters,  offsetof(Planet, mountainsParameters), file);
+    writeValue(maskParameters,       offsetof(Planet, maskParameters), file);
+    writeValue(mountainSharpness,    offsetof(Planet, mountainSharpness), file);
+    writeValue(mountainsBlend,       offsetof(Planet, mountainsBlend), file);
+    writeValue(maskShift,            offsetof(Planet, maskShift), file);
+    writeValue(oceanFloorDepth,      offsetof(Planet, oceanFloorDepth), file);
+    writeValue(oceanFloorSmoothing,  offsetof(Planet, oceanFloorSmoothing), file);
+    writeValue(oceanDepthMultiplier, offsetof(Planet, oceanDepthMultiplier), file);
+    writeValue(waterLevel,           offsetof(Planet, waterLevel), file);
+    writeValue(waterColorSurface,    offsetof(Planet, waterColorSurface), file);
+    writeValue(waterColorDeep,       offsetof(Planet, waterColorDeep), file);
+    writeValue(depthMultiplier,      offsetof(Planet, depthMultiplier), file);
+    writeValue(waterBlendMultiplier, offsetof(Planet, waterBlendMultiplier), file);
+    writeValue(textureScale,         offsetof(Planet, textureScale), file);
+    writeValue(textureSharpness,     offsetof(Planet, textureSharpness), file);
+    writeValue(normalMapInfluence,   offsetof(Planet, normalMapInfluence), file);
+
+    file.close();
+}
+
+void Planet::importFromFile(const char* path) {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        std::cerr << "ERROR : failed to read file at path " << path << std::endl;
+        return;
+    }
+    std::string line;
+    while (std::getline(file, line)) {
+        std::vector<float> values;
+        int idx = line.find_first_of(':');
+        size_t offset = std::stoi(line.substr(0, idx));
+        line = line.substr(idx+1);
+        while (idx != std::string::npos) {
+            idx = line.find_first_of(',');
+            values.push_back(std::stof(line.substr(0, idx)));
+            line = line.substr(idx + 1);
+        }
+        for (int i = 0; i < values.size(); i++) {
+            //std::cout << values[i] << std::endl;
+            *(float*)((char*)this + offset + i * sizeof(float)) = values[i];
+        }
+    }
+
+    updatePlanetMesh();
+}
+
+
+// STATIC FUNCTIONS
 
 void Planet::initPlanetRenderer(const unsigned int width, const unsigned int height) {
     // Planet shader
@@ -175,15 +290,31 @@ void Planet::renderFinalPlanet() {
         postProcessingQuad.texture = intermediate_image_bis;
 }
 
+static char planet_name[30];
+
 void Planet::displayInterface() {
     bool update = false;
     if (ImGui::CollapsingHeader("Planet parameters")) {
 
         ImGui::SliderFloat("Rotation speed", &rotateSpeed, -5.0f, 5.0f);
 
-        float col[3] = { visual.shading.color.x,visual.shading.color.y , visual.shading.color.z };
-        ImGui::ColorEdit3("Planet color", col);
-        visual.shading.color = vec3(col[0], col[1], col[2]);
+        if (ImGui::TreeNode("Terrain Color")) {
+            float col1[3] = { steepColor.x,steepColor.y , steepColor.z };
+            ImGui::ColorEdit3("Steep color", col1);
+            steepColor = vec3(col1[0], col1[1], col1[2]);
+
+            float col2[3] = { flatLowColor.x,flatLowColor.y , flatLowColor.z };
+            ImGui::ColorEdit3("Flat color low", col2);
+            flatLowColor = vec3(col2[0], col2[1], col2[2]);
+
+            float col3[3] = { flatHighColor.x,flatHighColor.y , flatHighColor.z };
+            ImGui::ColorEdit3("Flat color high", col3);
+            flatHighColor = vec3(col3[0], col3[1], col3[2]);
+
+            update |= ImGui::SliderFloat("Max slope", &maxSlope, 0.0f, 3.0f);
+
+            ImGui::TreePop();
+        }
 
 
         if (ImGui::TreeNode("Terrain generation")) {
@@ -234,6 +365,13 @@ void Planet::displayInterface() {
             ImGui::SliderFloat("Normal map influence", &normalMapInfluence, 0.0f, 1.0f);
             ImGui::TreePop();
         }
+    }
+
+    ImGui::InputText("##Planet Name", planet_name, 30);
+    if (ImGui::Button("Save"))
+    {
+        std::string path = "planets/" + std::string(planet_name) + ".txt";
+        exportToFile(path.c_str());
     }
 
     if (update)

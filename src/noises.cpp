@@ -4,7 +4,7 @@ bool displayPerlinNoiseGui(perlin_noise_parameters& parameters) {
 	bool update = false;
 	update |= ImGui::SliderFloat("Persistance", &parameters.persistency, 0.1f, 0.6f);
 	update |= ImGui::SliderFloat("Frequency gain", &parameters.frequency_gain, 1.5f, 2.5f);
-	update |= ImGui::SliderInt("Octave", &parameters.octave, 1, 8);
+	update |= ImGui::SliderFloat("Octave", &parameters.octave, 1, 8);
 	update |= ImGui::SliderFloat3("Center", parameters.center, 0.0f, 1.0f);
 	return update;
 }
