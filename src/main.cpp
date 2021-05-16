@@ -80,7 +80,7 @@ int main(int, char* argv[])
 		for (int i = 0; i < N_PLANETS; i++)
 			planets[i].updateRotation(deltaTime);
 		scene.camera.center_of_rotation = planets[planet_index].getPosition();
-		scene.light = scene.camera.position();
+		//scene.light = scene.camera.position();
 		user.fps_record.update();
 
 		imgui_create_frame();
@@ -137,11 +137,11 @@ void initialize_data()
 	float sun_mass = 1e12;
 
 	planets[0] = Planet(2.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 100, false);
-	planets[1] = Planet(1.0f, 1e7, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 500, false);
-	planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 600, false);
-	planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, true);
+	planets[1] = Planet(1.0f, 1e7, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 400, false);
+	planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 400, false);
+	planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 400, false);
 
-	planet_index = 2;
+	planet_index = 0;
 
 	// Light
 	scene.light = { 0.0f, 0.0f, 0.0f };
@@ -150,7 +150,11 @@ void initialize_data()
 
 	planets[0].importFromFile("planets/sun.txt");
 	planets[1].importFromFile("planets/rocky.txt");
-	planets[2].importFromFile("planets/earth.txt");
+	planets[2].importFromFile("planets/livable.txt");
+	planets[3].importFromFile("planets/sat1.txt");
+
+	/*glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);*/
 }
 
 

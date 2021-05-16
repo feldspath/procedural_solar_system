@@ -124,6 +124,10 @@ static void writeValue(const vec3& val, size_t offset, std::ofstream& file) {
     file << offset << ':' << val.x << ',' << val.y << ',' << val.z << '\n';
 }
 
+static void writeValue(const vec4& val, size_t offset, std::ofstream& file) {
+    file << offset << ':' << val.x << ',' << val.y << ',' << val.z << ',' << val.w << '\n';
+}
+
 static void writeValue(const float& val, size_t offset, std::ofstream& file) {
     file << offset << ':' << val << '\n';
 }
@@ -280,10 +284,14 @@ void Planet::switchIntermediateTexture() {
         postProcessingQuad.texture = intermediate_image_bis;
     }
     base_intermediate_image = !base_intermediate_image;
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
 }
 
 void Planet::renderFinalPlanet() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     if (base_intermediate_image)
         postProcessingQuad.texture = intermediate_image;
     else
@@ -330,7 +338,7 @@ void Planet::displayInterface() {
             }
             if (ImGui::TreeNode("Oceans")) {
                 update |= ImGui::SliderFloat("Floor depth", &oceanFloorDepth, 0.0f, 1.0f);
-                update |= ImGui::SliderFloat("Floor smoothing", &oceanFloorSmoothing, 0.1f, 20.0f);
+                update |= ImGui::SliderFloat("Floor smoothing", &oceanFloorSmoothing, 1.0f, 20.0f);
                 update |= ImGui::SliderFloat("Depth multiplier", &oceanDepthMultiplier, 0.0f, 10.0f);
                 ImGui::TreePop();
             }
@@ -347,15 +355,15 @@ void Planet::displayInterface() {
             ImGui::SliderFloat("Water level", &waterLevel, 0.0f, 3.0f);
 
             // Water Color
-            float colD[3] = { waterColorSurface.x, waterColorSurface.y , waterColorSurface.z };
-            ImGui::ColorEdit3("Surface water", colD);
-            waterColorSurface = vec3(colD[0], colD[1], colD[2]);
-            float colS[3] = { waterColorDeep.x, waterColorDeep.y , waterColorDeep.z };
-            ImGui::ColorEdit3("Deep water", colS);
-            waterColorDeep = vec3(colS[0], colS[1], colS[2]);
+            float colD[4] = { waterColorSurface.x, waterColorSurface.y , waterColorSurface.z, waterColorSurface.w };
+            ImGui::ColorEdit4("Surface water", colD);
+            waterColorSurface = vec4(colD[0], colD[1], colD[2], colD[3]);
+            float colS[4] = { waterColorDeep.x, waterColorDeep.y , waterColorDeep.z, waterColorDeep.w };
+            ImGui::ColorEdit4("Deep water", colS);
+            waterColorDeep = vec4(colS[0], colS[1], colS[2], colS[3]);
 
-            ImGui::SliderFloat("Depth multiplier", &depthMultiplier, 0.0f, 10.0f);
-            ImGui::SliderFloat("Water blend multipler", &waterBlendMultiplier, 0.0f, 100.0f);
+            ImGui::SliderFloat("Depth multiplier", &depthMultiplier, 0.0f, 5.0f);
+            ImGui::SliderFloat("Water blend multipler", &waterBlendMultiplier, 0.0f, 10.0f);
             ImGui::TreePop();
 
         }

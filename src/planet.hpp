@@ -53,8 +53,8 @@ public:
 
     // Water
     float waterLevel = 1.0f;
-    vcl::vec3 waterColorSurface = { 0.0f, 0.2f, 1.0f };
-    vcl::vec3 waterColorDeep = { 0.0f, 0.0f, 0.0f };
+    vcl::vec4 waterColorSurface = { 0.0f, 0.2f, 1.0f, 1.0f};
+    vcl::vec4 waterColorDeep = { 0.0f, 0.0f, 0.0f, 1.0f };
     float depthMultiplier = 6.0f;
     float waterBlendMultiplier = 60.0f;
 
