@@ -3,9 +3,9 @@
 #include <time.h>
 
 #include "planet.hpp"
-#include "noises.hpp"
 #include "physics.hpp"
 #include "skybox.hpp"
+#include "camera_fps.hpp"
 
 #define N_PLANETS 4
 
@@ -16,23 +16,32 @@ struct gui_parameters {
 	bool display_wireframe = false;
 };
 
+struct keyboard_state_parameters {
+	int right = 0;
+	int front = 0;
+	int up = 0;
+
+};
+
 struct user_interaction_parameters {
 	vec2 mouse_prev;
 	timer_fps fps_record;
 	mesh_drawable global_frame;
 	gui_parameters gui;
 	bool cursor_on_gui;
+	keyboard_state_parameters keyboard_state;
 };
 user_interaction_parameters user;
 
 struct scene_environment
 {
-	camera_around_center camera;
+	camera_fps camera;
 	mat4 projection;
 	vec3 light;
 };
 scene_environment scene;
 
+void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouse_move_callback(GLFWwindow* window, double xpos, double ypos);
 void window_size_callback(GLFWwindow* window, int width, int height);
 
@@ -61,6 +70,8 @@ int main(int, char* argv[])
 	std::cout << opengl_info_display() << std::endl;
 
 	imgui_init(window);
+	glfwSetKeyCallback(window, keyboard_callback);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetCursorPosCallback(window, mouse_move_callback);
 	glfwSetWindowSizeCallback(window, window_size_callback);
 	
@@ -76,12 +87,18 @@ int main(int, char* argv[])
 	{
 		deltaTime = glfwGetTime() - previousTime;
 		previousTime = glfwGetTime();
-        PhysicsComponent::update(deltaTime);
+
+		vec3 direction = { user.keyboard_state.front, user.keyboard_state.right, user.keyboard_state.up };
+		scene.camera.update_position(direction);
+		PhysicsComponent::update(deltaTime);
 		for (int i = 0; i < N_PLANETS; i++)
 			planets[i].updateRotation(deltaTime);
-		scene.camera.center_of_rotation = planets[planet_index].getPosition();
+		//scene.camera.center_of_rotation = planets[planet_index].getPosition();
 		//scene.light = scene.camera.position();
 		user.fps_record.update();
+
+		
+		
 
 		imgui_create_frame();
 		if(user.fps_record.event) {
@@ -129,17 +146,20 @@ void initialize_data()
 	user.global_frame = mesh_drawable(mesh_primitive_frame());
 	user.gui.display_frame = false;
 
-	scene.camera.distance_to_center = 2.5f;
-	scene.camera.look_at({4,3,2}, {0,0,0}, {0,0,1});
+	float sun_mass = (float)1e12;
+
+	scene.camera.position_camera = { 25, 5, 10};
+	scene.camera.orientation_camera = rotation();
+	scene.camera.init_physics();
 
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
 
-	float sun_mass = 1e12;
+	
 
 	planets[0] = Planet(2.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 100, false);
-	planets[1] = Planet(1.0f, 1e7, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 400, false);
-	planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 400, false);
-	planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 400, false);
+	planets[1] = Planet(1.0f, 1e7, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 100, false);
+	planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 100, false);
+	planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, false);
 
 	planet_index = 0;
 
@@ -210,15 +230,57 @@ void mouse_move_callback(GLFWwindow* window, double xpos, double ypos)
 
 	auto& camera = scene.camera;
 	if(!user.cursor_on_gui){
-		if(state.mouse_click_left && !state.key_ctrl)
-			camera.manipulator_rotate_trackball(p0, p1);
-		if(state.mouse_click_left && state.key_ctrl)
-			camera.manipulator_translate_in_plane(p1-p0);
-		if(state.mouse_click_right)
-			camera.manipulator_scale_distance_to_center( (p1-p0).y );
+		//if(state.mouse_click_left && !state.key_ctrl)
+		//	camera.manipulator_rotate_trackball(p0, p1);
+		//if(state.mouse_click_left && state.key_ctrl)
+		//	camera.manipulator_translate_in_plane(p1-p0);
+		//if(state.mouse_click_right)
+		//	camera.manipulator_scale_distance_to_center( (p1-p0).y );
+		vec2 offset = p1 - p0;
+		offset.x = -offset.x;
+		scene.camera.update_orientation(offset);
 	}
 
 	user.mouse_prev = p1;
+}
+
+void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+	if (key == GLFW_KEY_W) {
+		if (user.keyboard_state.front < 1 && (action == GLFW_PRESS))
+			user.keyboard_state.front++;
+		if (user.keyboard_state.front > -1 && (action == GLFW_RELEASE))
+			user.keyboard_state.front--;
+	}
+	if (key == GLFW_KEY_S) {
+		if (user.keyboard_state.front > -1 && (action == GLFW_PRESS))
+			user.keyboard_state.front--;
+		if (user.keyboard_state.front < 1 && (action == GLFW_RELEASE))
+			user.keyboard_state.front++;
+	}
+	if (key == GLFW_KEY_D) {
+		if (user.keyboard_state.right < 1 && (action == GLFW_PRESS))
+			user.keyboard_state.right++;
+		if (user.keyboard_state.right > -1 && (action == GLFW_RELEASE))
+			user.keyboard_state.right--;
+	}
+	if (key == GLFW_KEY_A) {
+		if (user.keyboard_state.right > -1 && (action == GLFW_PRESS))
+			user.keyboard_state.right--;
+		if (user.keyboard_state.right < 1 && (action == GLFW_RELEASE))
+			user.keyboard_state.right++;
+	}
+	if (key == GLFW_KEY_LEFT_SHIFT) {
+		if (user.keyboard_state.up < 1 && (action == GLFW_PRESS))
+			user.keyboard_state.up++;
+		if (user.keyboard_state.up > -1 && (action == GLFW_RELEASE))
+			user.keyboard_state.up--;
+	}
+	if (key == GLFW_KEY_LEFT_CONTROL) {
+		if (user.keyboard_state.up > -1 && (action == GLFW_PRESS))
+			user.keyboard_state.up--;
+		if (user.keyboard_state.up < 1 && (action == GLFW_RELEASE))
+			user.keyboard_state.up++;
+	}
 }
 
 void opengl_uniform(GLuint shader, scene_environment const& current_scene)

@@ -10,7 +10,7 @@ class Planet {
 private:
 
     // Physics
-    unsigned int physics;
+    PhysicsComponent* physics = nullptr;
 
     // Rendering
     vcl::mesh m;
@@ -64,7 +64,7 @@ public:
 	float normalMapInfluence = 0.2f;
 
     // Constructors
-	Planet() {}
+    Planet() {}
     Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity = {0, 0, 0}, int division=200, bool update_now=true);
 
     // Getters
@@ -104,7 +104,7 @@ public:
 template <typename SCENE>
 void Planet::renderPlanet(SCENE const& scene) {
     setCustomUniforms();
-    visual.transform.translate = PhysicsComponent::objects.at(physics).position;
+    visual.transform.translate = physics->get_position();
     vcl::draw(visual, scene);
 }
 

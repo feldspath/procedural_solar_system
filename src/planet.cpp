@@ -22,7 +22,7 @@ static float blend(float noise, float blending) {
 
 // Planet members declaration
 mesh_drawable_multitexture Planet::postProcessingQuad;
-GLuint Planet::shader = -1;
+GLuint Planet::shader = (GLuint)-1;
 GLuint Planet::fbo;
 GLuint Planet::depth_buffer;
 GLuint Planet::intermediate_image;
@@ -102,7 +102,7 @@ void Planet::updatePlanetMesh() {
 }
 
 vcl::vec3 Planet::getPosition() {
-    return PhysicsComponent::objects[physics].position;
+    return physics->get_position();
 }
 
 void Planet::setCustomUniforms() {
@@ -290,8 +290,6 @@ void Planet::switchIntermediateTexture() {
 
 void Planet::renderFinalPlanet() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    //glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     if (base_intermediate_image)
         postProcessingQuad.texture = intermediate_image;
     else
