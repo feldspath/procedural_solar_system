@@ -7,6 +7,7 @@
 class PhysicsComponent {
 private:
 	vcl::vec3 position;
+	vcl::vec3 nextPosition;
 	vcl::vec3 velocity;
 	float mass = 0.0f;
 	vcl::vec3 nextForce;

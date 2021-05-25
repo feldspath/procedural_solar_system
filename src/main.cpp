@@ -6,10 +6,11 @@
 #include "physics.hpp"
 #include "skybox.hpp"
 #include "camera_fps.hpp"
+#include "player.hpp"
 
 #define N_PLANETS 4
 
-#define CAMERA_TYPE 0
+#define CAMERA_TYPE 1
 
 using namespace vcl;
 
@@ -41,6 +42,9 @@ struct scene_environment
 	camera_fps camera;
 	mat4 projection;
 	vec3 light;
+	Player player;
+	Planet planets[N_PLANETS];
+	Skybox skybox;
 };
 #else
 struct scene_environment
@@ -48,6 +52,8 @@ struct scene_environment
 	camera_around_center camera;
 	mat4 projection;
 	vec3 light;
+	Planet planets[N_PLANETS];
+	Skybox skybox;
 };
 #endif
 
@@ -67,10 +73,7 @@ const unsigned int SCR_HEIGHT = 1024;
 float previousTime;
 float deltaTime;
 
-Planet planets[N_PLANETS];
 int planet_index;
-
-Skybox skybox;
 
 int main(int, char* argv[])
 {
@@ -99,6 +102,8 @@ int main(int, char* argv[])
 	previousTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
+
+		//Sleep(20);
 		deltaTime = glfwGetTime() - previousTime;
 		previousTime = glfwGetTime();
 
@@ -106,16 +111,16 @@ int main(int, char* argv[])
 		// Camera 
 		#if CAMERA_TYPE
 			vec3 direction = { user.keyboard_state.front, user.keyboard_state.right, user.keyboard_state.up };
-			scene.camera.update_position(direction);
+			scene.player.update_position(direction);
 		#else
-			scene.camera.center_of_rotation = planets[planet_index].getPosition();
+			scene.camera.center_of_rotation = scene.planets[planet_index].getPosition();
 			scene.light = scene.camera.position();
 		#endif
 		
 		// Physics
 		PhysicsComponent::update(deltaTime);
 		for (int i = 0; i < N_PLANETS; i++)
-			planets[i].updateRotation(deltaTime);
+			scene.planets[i].updateRotation(deltaTime);
 		
 		user.fps_record.update();
 			
@@ -171,7 +176,8 @@ void initialize_data()
 	#if CAMERA_TYPE
 		scene.camera.position_camera = { 25, 5, 10};
 		scene.camera.orientation_camera = rotation();
-		scene.camera.init_physics();
+		scene.player.bindCamera(&scene.camera);
+		scene.player.init_physics();
 	#else
 	#endif
 
@@ -179,19 +185,19 @@ void initialize_data()
 
 	
 
-	planets[0] = Planet(2.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 100, true);
-	planets[1] = Planet(1.0f, 1e7, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 100, true);
-	planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 100, true);
-	planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, true);
+	scene.planets[0] = Planet(2.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 100, true);
+	scene.planets[1] = Planet(1.0f, 1e7, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 100, true);
+	scene.planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 100, true);
+	scene.planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, true);
 
 	planet_index = 0;
 
 	// Light
 	scene.light = { 0.0f, 0.0f, 0.0f };
 
-	skybox = Skybox("assets/cubemap.png");
+	scene.skybox = Skybox("assets/cubemap.png");
 
-	planets[0].importFromFile("planets/test6.pbf");
+	scene.planets[0].importFromFile("planets/test6.pbf");
 	//planets[1].importFromFile("planets/rocky.txt");
 	//planets[2].importFromFile("planets/livable.txt");
 	//planets[3].importFromFile("planets/sat1.txt");
@@ -202,18 +208,18 @@ void display_scene()
 {
     Planet::startPlanetRendering();
 	for (int i = 0; i < N_PLANETS; i++)
-		planets[i].renderPlanet(scene);
+		scene.planets[i].renderPlanet(scene);
 
-	skybox.render(scene);
+	scene.skybox.render(scene);
    
     Planet::startWaterRendering(scene);
 	for (int i = 0; i < N_PLANETS - 1; i++) {
 		Planet::switchIntermediateTexture();
-		planets[i].renderWater(scene);
+		scene.planets[i].renderWater(scene);
 	}
 
 	Planet::renderFinalPlanet();
-	planets[N_PLANETS-1].renderWater(scene);
+	scene.planets[N_PLANETS-1].renderWater(scene);
     
 
 }
@@ -229,7 +235,7 @@ void display_interface()
 	scene.light = vec3(camPos[0], camPos[1], camPos[2]);
 
 	ImGui::SliderInt("Planet index", &planet_index, 0, N_PLANETS - 1);
-	planets[planet_index].displayInterface();
+	scene.planets[planet_index].displayInterface();
 }
 
 
@@ -253,7 +259,7 @@ void mouse_move_callback(GLFWwindow* window, double xpos, double ypos)
 		#if CAMERA_TYPE
 			vec2 offset = p1 - p0;
 			offset.x = -offset.x;
-			scene.camera.update_orientation(offset);
+			camera.update_orientation(offset);
 		#else
 			if (state.mouse_click_left && !state.key_ctrl)
 				camera.manipulator_rotate_trackball(p0, p1);

@@ -105,6 +105,7 @@ template <typename SCENE>
 void Planet::renderPlanet(SCENE const& scene) {
     setCustomUniforms();
     visual.transform.translate = physics->get_position();
+
     vcl::draw(visual, scene);
 }
 

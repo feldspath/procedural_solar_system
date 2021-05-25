@@ -12,6 +12,7 @@ PhysicsComponent PhysicsComponent::null;
 PhysicsComponent::PhysicsComponent(float m, vcl::vec3 p, vcl::vec3 v) {
 	mass = m;
 	position = p;
+    nextPosition = p;
 	velocity = v;
     nextForce = vcl::vec3(0.0f, 0.0f, 0.0f);
 }
@@ -32,48 +33,58 @@ void PhysicsComponent::add_force(vcl::vec3 force) {
 }
 
 vcl::vec3 PhysicsComponent::get_position() {
-    return position;
+    float alpha = deltaTimeOffset / fixedDeltaTime;
+    std::cout << deltaTimeOffset << std::endl;
+    return nextPosition * (1-alpha) + position * alpha;
+
+    //return position;
 }
 
 
 void PhysicsComponent::update(float deltaTime) {
-	float timeInterval = deltaTime + deltaTimeOffset;
-	int n = timeInterval / fixedDeltaTime;
-	deltaTimeOffset = timeInterval - n * fixedDeltaTime;
-	for (int i = 0; i < n; i++)
-		singleUpdate();
+    int updateCount = 0;
+    float timeSpent = deltaTimeOffset;
+    while (timeSpent < deltaTime) {
+        timeSpent += fixedDeltaTime;
+        singleUpdate();
+        updateCount++;
+    }
+    deltaTimeOffset = timeSpent - deltaTime;
+    //std::cout << updateCount << std::endl;
+    
+
     for (int i = 0; i < objects.size(); i++)
         objects[i]->nextForce = vcl::vec3(0.0f, 0.0f, 0.0f);
 }
 
 void PhysicsComponent::singleUpdate() {
     int n = objects.size();
-    std::vector<vcl::vec3> newPositions;
-    newPositions.resize(n);
+
     for (int i = 0; i < n; i++) {
-        PhysicsComponent* current = objects.at(i);
-        vcl::vec3 forces = { 0, 0, 0 };
+        objects[i]->position = objects[i]->nextPosition;
+    }
+
+    for (int i = 0; i < n; i++) {
+        PhysicsComponent* current = objects[i];
+        vcl::vec3 accel = { 0, 0, 0 };
         for (int j = 0; j < n; j++) {
-            PhysicsComponent* obj = objects.at(j);
+            PhysicsComponent* obj = objects[j];
             if (i != j) {
                 float sqrDist = (current->position.x - obj->position.x) * (current->position.x - obj->position.x);
                 sqrDist += (current->position.y - obj->position.y) * (current->position.y - obj->position.y);
                 sqrDist += (current->position.z - obj->position.z) * (current->position.z - obj->position.z);
-                forces -= obj->mass / sqrDist * vcl::normalize(current->position - obj->position);
+                accel -= obj->mass / sqrDist * vcl::normalize(current->position - obj->position);
             }
         }
-        forces *= G;
-        forces += current->nextForce;
+        accel *= G;
+        accel += current->nextForce / current->mass;
         //if (i == 0) {
         //    std::cout << forces.x << "," << forces.y << "," << forces.z << std::endl;
         //    std::cout << "velocity : " << current->velocity.x << ',' << current->velocity.y << ',' << current->velocity.z << std::endl;
         //}
-        current->velocity += forces * fixedDeltaTime;
-        newPositions[i] = current->velocity * fixedDeltaTime;
+        //current->velocity += accel * fixedDeltaTime;
+        current->velocity += accel * fixedDeltaTime;
+        current->nextPosition = current->position + current->velocity * fixedDeltaTime;
         
-    }
-
-    for (int i = 0; i < n; i++) {
-        objects.at(i)->position += newPositions[i];
-    }
+    }    
 }
