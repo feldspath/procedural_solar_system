@@ -30,7 +30,7 @@ void camera_fps::update_orientation(vcl::vec2 mouse_offset) {
 
 void camera_fps::update_position(vcl::vec3 direction) {
 	vcl::vec3 dir = direction.x * front() + direction.y * right() + direction.z * up();
-	float dir_norm = norm(dir);
+	float dir_norm = vcl::norm(dir);
 	if (dir_norm > 0.1f) {
 		physics->add_force(thrustForce * dir / dir_norm);
 	}

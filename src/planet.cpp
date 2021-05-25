@@ -20,6 +20,70 @@ static float blend(float noise, float blending) {
     return std::atan(noise * blending) / pi + 0.5f;
 }
 
+static std::vector<size_t> importerLookupTable;
+static std::vector<char> importerMemberSizes;
+
+static bool little_endian;
+
+static void buildImporterLookupTable() {
+    importerLookupTable.resize(0);
+    importerLookupTable.push_back(offsetof(Planet, radius));
+    importerLookupTable.push_back(offsetof(Planet, rotateSpeed));
+    importerLookupTable.push_back(offsetof(Planet, flatLowColor));
+    importerLookupTable.push_back(offsetof(Planet, flatHighColor));
+    importerLookupTable.push_back(offsetof(Planet, steepColor));
+    importerLookupTable.push_back(offsetof(Planet, maxSlope));
+    importerLookupTable.push_back(offsetof(Planet, continentParameters));
+    importerLookupTable.push_back(offsetof(Planet, mountainsParameters));
+    importerLookupTable.push_back(offsetof(Planet, maskParameters));
+    importerLookupTable.push_back(offsetof(Planet, mountainSharpness));
+    importerLookupTable.push_back(offsetof(Planet, mountainsBlend));
+    importerLookupTable.push_back(offsetof(Planet, maskShift));
+    importerLookupTable.push_back(offsetof(Planet, oceanFloorDepth));
+    importerLookupTable.push_back(offsetof(Planet, oceanFloorSmoothing));
+    importerLookupTable.push_back(offsetof(Planet, oceanDepthMultiplier));
+    importerLookupTable.push_back(offsetof(Planet, waterLevel));
+    importerLookupTable.push_back(offsetof(Planet, waterColorSurface));
+    importerLookupTable.push_back(offsetof(Planet, waterColorDeep));
+    importerLookupTable.push_back(offsetof(Planet, depthMultiplier));
+    importerLookupTable.push_back(offsetof(Planet, waterBlendMultiplier));
+    importerLookupTable.push_back(offsetof(Planet, textureScale));
+    importerLookupTable.push_back(offsetof(Planet, textureSharpness));
+    importerLookupTable.push_back(offsetof(Planet, normalMapInfluence));
+
+    importerMemberSizes.push_back(sizeof(Planet::radius));
+    importerMemberSizes.push_back(sizeof(Planet::rotateSpeed));
+    importerMemberSizes.push_back(sizeof(Planet::flatLowColor));
+    importerMemberSizes.push_back(sizeof(Planet::flatHighColor));
+    importerMemberSizes.push_back(sizeof(Planet::steepColor));
+    importerMemberSizes.push_back(sizeof(Planet::maxSlope));
+    importerMemberSizes.push_back(sizeof(Planet::continentParameters));
+    importerMemberSizes.push_back(sizeof(Planet::mountainsParameters));
+    importerMemberSizes.push_back(sizeof(Planet::maskParameters));
+    importerMemberSizes.push_back(sizeof(Planet::mountainSharpness));
+    importerMemberSizes.push_back(sizeof(Planet::mountainsBlend));
+    importerMemberSizes.push_back(sizeof(Planet::maskShift));
+    importerMemberSizes.push_back(sizeof(Planet::oceanFloorDepth));
+    importerMemberSizes.push_back(sizeof(Planet::oceanFloorSmoothing));
+    importerMemberSizes.push_back(sizeof(Planet::oceanDepthMultiplier));
+    importerMemberSizes.push_back(sizeof(Planet::waterLevel));
+    importerMemberSizes.push_back(sizeof(Planet::waterColorSurface));
+    importerMemberSizes.push_back(sizeof(Planet::waterColorDeep));
+    importerMemberSizes.push_back(sizeof(Planet::depthMultiplier));
+    importerMemberSizes.push_back(sizeof(Planet::waterBlendMultiplier));
+    importerMemberSizes.push_back(sizeof(Planet::textureScale));
+    importerMemberSizes.push_back(sizeof(Planet::textureSharpness));
+    importerMemberSizes.push_back(sizeof(Planet::normalMapInfluence));
+
+
+    // Check wether or not the system is little endian
+    union {
+        uint32_t i;
+        char c[4];
+    } bint = { 0x01020304 };
+    little_endian = (bint.c[0] != 1);
+}
+
 // Planet members declaration
 mesh_drawable_multitexture Planet::postProcessingQuad;
 GLuint Planet::shader = (GLuint)-1;
@@ -120,82 +184,56 @@ void Planet::updateRotation(float deltaTime) {
     visual.transform.rotate = rot * visual.transform.rotate;
 }
 
-static void writeValue(const vec3& val, size_t offset, std::ofstream& file) {
-    file << offset << ':' << val.x << ',' << val.y << ',' << val.z << '\n';
-}
-
-static void writeValue(const vec4& val, size_t offset, std::ofstream& file) {
-    file << offset << ':' << val.x << ',' << val.y << ',' << val.z << ',' << val.w << '\n';
-}
-
-static void writeValue(const float& val, size_t offset, std::ofstream& file) {
-    file << offset << ':' << val << '\n';
-}
-
-static void writeValue(const perlin_noise_parameters& val, size_t offset, std::ofstream& file) {
-    file << offset << ':'
-         << val.persistency << ','
-         << val.frequency_gain << ','
-         << val.octave << ','
-         << val.center[0] << ',' << val.center[1] << ',' << val.center[2]
-         << '\n';
-}
-
 void Planet::exportToFile(const char* path) {
-    std::ofstream file(path);
+    if (!importerLookupTable.size())
+        buildImporterLookupTable();
+
+    std::ofstream file(path, std::ofstream::binary);
     if (!file.is_open()) {
         std::cerr << "ERROR : failed to open file at path " << path << std::endl;
         return;
     }
     std::cout << "Writing to file " << path << std::endl;
-    writeValue(radius,               offsetof(Planet, radius), file);
-    writeValue(rotateSpeed,          offsetof(Planet, rotateSpeed), file);
-    writeValue(flatLowColor,         offsetof(Planet, flatLowColor), file);
-    writeValue(flatHighColor,        offsetof(Planet, flatHighColor), file);
-    writeValue(steepColor,           offsetof(Planet, steepColor), file);
-    writeValue(maxSlope,             offsetof(Planet, maxSlope), file);
-    writeValue(continentParameters,  offsetof(Planet, continentParameters), file);
-    writeValue(mountainsParameters,  offsetof(Planet, mountainsParameters), file);
-    writeValue(maskParameters,       offsetof(Planet, maskParameters), file);
-    writeValue(mountainSharpness,    offsetof(Planet, mountainSharpness), file);
-    writeValue(mountainsBlend,       offsetof(Planet, mountainsBlend), file);
-    writeValue(maskShift,            offsetof(Planet, maskShift), file);
-    writeValue(oceanFloorDepth,      offsetof(Planet, oceanFloorDepth), file);
-    writeValue(oceanFloorSmoothing,  offsetof(Planet, oceanFloorSmoothing), file);
-    writeValue(oceanDepthMultiplier, offsetof(Planet, oceanDepthMultiplier), file);
-    writeValue(waterLevel,           offsetof(Planet, waterLevel), file);
-    writeValue(waterColorSurface,    offsetof(Planet, waterColorSurface), file);
-    writeValue(waterColorDeep,       offsetof(Planet, waterColorDeep), file);
-    writeValue(depthMultiplier,      offsetof(Planet, depthMultiplier), file);
-    writeValue(waterBlendMultiplier, offsetof(Planet, waterBlendMultiplier), file);
-    writeValue(textureScale,         offsetof(Planet, textureScale), file);
-    writeValue(textureSharpness,     offsetof(Planet, textureSharpness), file);
-    writeValue(normalMapInfluence,   offsetof(Planet, normalMapInfluence), file);
-
+    
+    char buffer[512];
+    int idx = 0;
+    for (int i = 0; i < importerLookupTable.size(); i++) {
+        char size = importerMemberSizes[i];
+        buffer[idx++] = size;
+        for (int j = 0; j < size; j++)
+            buffer[idx++] = *((char*)this + importerLookupTable[i] + j);
+    }
+    file.write(buffer, idx);
     file.close();
 }
 
 void Planet::importFromFile(const char* path) {
-    std::ifstream file(path);
+    if (!importerLookupTable.size())
+        buildImporterLookupTable();
+
+    std::ifstream file(path, std::ifstream::binary);
     if (!file.is_open()) {
         std::cerr << "ERROR : failed to read file at path " << path << std::endl;
         return;
     }
-    std::string line;
-    while (std::getline(file, line)) {
-        std::vector<float> values;
-        int idx = line.find_first_of(':');
-        size_t offset = std::stoi(line.substr(0, idx));
-        line = line.substr(idx+1);
-        while (idx != std::string::npos) {
-            idx = line.find_first_of(',');
-            values.push_back(std::stof(line.substr(0, idx)));
-            line = line.substr(idx + 1);
+    file.seekg(0, file.end);
+    int fileSize = file.tellg();
+    file.seekg(0, file.beg);
+    char* buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+   
+    int idx = 0;
+    int i = 0;
+    while (idx < fileSize) {
+        char size = buffer[idx++];
+        for (int j = 0; j < size; j++) {
+            if (little_endian)
+                *((char*)this + importerLookupTable[i] + j) = buffer[idx++];
+            else
+                *((char*)this + importerLookupTable[i] + size - 1 - j) = buffer[idx++];
         }
-        for (int i = 0; i < values.size(); i++) {
-            //std::cout << values[i] << std::endl;
-            *(float*)((char*)this + offset + i * sizeof(float)) = values[i];
-        }
+            
+        i++;
     }
 
     updatePlanetMesh();
@@ -376,7 +414,7 @@ void Planet::displayInterface() {
     ImGui::InputText("##Planet Name", planet_name, 30);
     if (ImGui::Button("Save"))
     {
-        std::string path = "planets/" + std::string(planet_name) + ".txt";
+        std::string path = "planets/" + std::string(planet_name) + ".pbf";
         exportToFile(path.c_str());
     }
 

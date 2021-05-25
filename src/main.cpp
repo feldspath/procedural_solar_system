@@ -9,6 +9,8 @@
 
 #define N_PLANETS 4
 
+#define CAMERA_TYPE 0
+
 using namespace vcl;
 
 struct gui_parameters {
@@ -33,12 +35,22 @@ struct user_interaction_parameters {
 };
 user_interaction_parameters user;
 
+#if CAMERA_TYPE
 struct scene_environment
 {
 	camera_fps camera;
 	mat4 projection;
 	vec3 light;
 };
+#else
+struct scene_environment
+{
+	camera_around_center camera;
+	mat4 projection;
+	vec3 light;
+};
+#endif
+
 scene_environment scene;
 
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -71,7 +83,9 @@ int main(int, char* argv[])
 
 	imgui_init(window);
 	glfwSetKeyCallback(window, keyboard_callback);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	#if CAMERA_TYPE
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	#endif
 	glfwSetCursorPosCallback(window, mouse_move_callback);
 	glfwSetWindowSizeCallback(window, window_size_callback);
 	
@@ -88,17 +102,23 @@ int main(int, char* argv[])
 		deltaTime = glfwGetTime() - previousTime;
 		previousTime = glfwGetTime();
 
-		vec3 direction = { user.keyboard_state.front, user.keyboard_state.right, user.keyboard_state.up };
-		scene.camera.update_position(direction);
+
+		// Camera 
+		#if CAMERA_TYPE
+			vec3 direction = { user.keyboard_state.front, user.keyboard_state.right, user.keyboard_state.up };
+			scene.camera.update_position(direction);
+		#else
+			scene.camera.center_of_rotation = planets[planet_index].getPosition();
+			scene.light = scene.camera.position();
+		#endif
+		
+		// Physics
 		PhysicsComponent::update(deltaTime);
 		for (int i = 0; i < N_PLANETS; i++)
 			planets[i].updateRotation(deltaTime);
-		//scene.camera.center_of_rotation = planets[planet_index].getPosition();
-		//scene.light = scene.camera.position();
+		
 		user.fps_record.update();
-
-		
-		
+			
 
 		imgui_create_frame();
 		if(user.fps_record.event) {
@@ -148,18 +168,21 @@ void initialize_data()
 
 	float sun_mass = (float)1e12;
 
-	scene.camera.position_camera = { 25, 5, 10};
-	scene.camera.orientation_camera = rotation();
-	scene.camera.init_physics();
+	#if CAMERA_TYPE
+		scene.camera.position_camera = { 25, 5, 10};
+		scene.camera.orientation_camera = rotation();
+		scene.camera.init_physics();
+	#else
+	#endif
 
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
 
 	
 
-	planets[0] = Planet(2.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 100, false);
-	planets[1] = Planet(1.0f, 1e7, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 100, false);
-	planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 100, false);
-	planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, false);
+	planets[0] = Planet(2.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 100, true);
+	planets[1] = Planet(1.0f, 1e7, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 100, true);
+	planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 100, true);
+	planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, true);
 
 	planet_index = 0;
 
@@ -168,13 +191,10 @@ void initialize_data()
 
 	skybox = Skybox("assets/cubemap.png");
 
-	planets[0].importFromFile("planets/sun.txt");
-	planets[1].importFromFile("planets/rocky.txt");
-	planets[2].importFromFile("planets/livable.txt");
-	planets[3].importFromFile("planets/sat1.txt");
-
-	/*glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);*/
+	planets[0].importFromFile("planets/test6.pbf");
+	//planets[1].importFromFile("planets/rocky.txt");
+	//planets[2].importFromFile("planets/livable.txt");
+	//planets[3].importFromFile("planets/sat1.txt");
 }
 
 
@@ -230,15 +250,20 @@ void mouse_move_callback(GLFWwindow* window, double xpos, double ypos)
 
 	auto& camera = scene.camera;
 	if(!user.cursor_on_gui){
-		//if(state.mouse_click_left && !state.key_ctrl)
-		//	camera.manipulator_rotate_trackball(p0, p1);
-		//if(state.mouse_click_left && state.key_ctrl)
-		//	camera.manipulator_translate_in_plane(p1-p0);
-		//if(state.mouse_click_right)
-		//	camera.manipulator_scale_distance_to_center( (p1-p0).y );
-		vec2 offset = p1 - p0;
-		offset.x = -offset.x;
-		scene.camera.update_orientation(offset);
+		#if CAMERA_TYPE
+			vec2 offset = p1 - p0;
+			offset.x = -offset.x;
+			scene.camera.update_orientation(offset);
+		#else
+			if (state.mouse_click_left && !state.key_ctrl)
+				camera.manipulator_rotate_trackball(p0, p1);
+			if (state.mouse_click_left && state.key_ctrl)
+				camera.manipulator_translate_in_plane(p1 - p0);
+			if (state.mouse_click_right)
+				camera.manipulator_scale_distance_to_center((p1 - p0).y);
+		#endif
+
+		
 	}
 
 	user.mouse_prev = p1;

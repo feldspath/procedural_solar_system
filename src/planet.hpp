@@ -76,7 +76,7 @@ public:
 	void updateRotation(float deltaTime);
 
     // Rendering
-    void Planet::displayInterface();
+    void displayInterface();
     
     void setCustomUniforms();
     template <typename SCENE> void renderPlanet(SCENE const& scene);
