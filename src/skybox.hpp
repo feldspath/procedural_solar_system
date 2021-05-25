@@ -18,7 +18,7 @@ public:
 template <typename SCENE>
 void Skybox::render(SCENE const& scene) {
 	glUseProgram(cube.shader);
-	vcl::mat4 posView = inverse(frame(scene.camera.orientation(), { 0, 0, 0 })).matrix();
+    vcl::mat4 posView = vcl::inverse(vcl::frame(scene.camera.orientation(), { 0, 0, 0 })).matrix();
 
 	// Send uniforms for this shader
 	vcl::opengl_uniform(cube.shader, "view", posView, false);
