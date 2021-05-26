@@ -1,6 +1,7 @@
 #include "vcl/vcl.hpp"
 #include <iostream>
 #include <time.h>
+#include <vector>
 
 #include "planet.hpp"
 #include "physics.hpp"
@@ -8,9 +9,7 @@
 #include "camera_fps.hpp"
 #include "player.hpp"
 
-#define N_PLANETS 4
-
-#define CAMERA_TYPE 1
+#define CAMERA_TYPE 0
 
 using namespace vcl;
 
@@ -43,7 +42,7 @@ struct scene_environment
 	mat4 projection;
 	vec3 light;
 	Player player;
-	Planet planets[N_PLANETS];
+	std::vector<Planet> planets;
 	Skybox skybox;
 };
 #else
@@ -52,7 +51,7 @@ struct scene_environment
 	camera_around_center camera;
 	mat4 projection;
 	vec3 light;
-	Planet planets[N_PLANETS];
+	std::vector<Planet> planets;
 	Skybox skybox;
 };
 #endif
@@ -119,7 +118,7 @@ int main(int, char* argv[])
 		
 		// Physics
 		PhysicsComponent::update(deltaTime);
-		for (int i = 0; i < N_PLANETS; i++)
+		for (int i = 0; i < scene.planets.size(); i++)
 			scene.planets[i].updateRotation(deltaTime);
 		
 		user.fps_record.update();
@@ -176,28 +175,31 @@ void initialize_data()
 	#if CAMERA_TYPE
 		scene.camera.position_camera = { 25, 5, 10};
 		scene.camera.orientation_camera = rotation();
-		scene.player.bindCamera(&scene.camera);
+		scene.player.bind_camera(&scene.camera);
 		scene.player.init_physics();
+		scene.player.bind_planets(&scene.planets);
+		PhysicsComponent::player = &scene.player;
 	#else
 	#endif
 
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
 
 	
-
+	scene.planets.resize(4);
 	scene.planets[0] = Planet(2.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 100, true);
-	scene.planets[1] = Planet(1.0f, 1e7, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 100, true);
+	scene.planets[1] = Planet(1.0f, 1e9, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 100, true);
 	scene.planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 100, true);
 	scene.planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, true);
 
 	planet_index = 0;
 
 	// Light
-	scene.light = { 0.0f, 0.0f, 0.0f };
+	scene.light = { 10.0f, -10.0f, 0.0f };
 
 	scene.skybox = Skybox("assets/cubemap.png");
 
-	scene.planets[0].importFromFile("planets/test6.pbf");
+	//scene.planets[0].importFromFile("planets/test6.pbf");
+	scene.planets[0].rotateSpeed = 0.1f;
 	//planets[1].importFromFile("planets/rocky.txt");
 	//planets[2].importFromFile("planets/livable.txt");
 	//planets[3].importFromFile("planets/sat1.txt");
@@ -207,19 +209,19 @@ void initialize_data()
 void display_scene()
 {
     Planet::startPlanetRendering();
-	for (int i = 0; i < N_PLANETS; i++)
+	for (int i = 0; i < scene.planets.size(); i++)
 		scene.planets[i].renderPlanet(scene);
 
 	scene.skybox.render(scene);
    
     Planet::startWaterRendering(scene);
-	for (int i = 0; i < N_PLANETS - 1; i++) {
+	for (int i = 0; i < scene.planets.size() - 1; i++) {
 		Planet::switchIntermediateTexture();
 		scene.planets[i].renderWater(scene);
 	}
 
 	Planet::renderFinalPlanet();
-	scene.planets[N_PLANETS-1].renderWater(scene);
+	scene.planets[scene.planets.size()-1].renderWater(scene);
     
 
 }
@@ -234,7 +236,7 @@ void display_interface()
 	ImGui::SliderFloat3("Light position", camPos, 0.0f, 10.0f);
 	scene.light = vec3(camPos[0], camPos[1], camPos[2]);
 
-	ImGui::SliderInt("Planet index", &planet_index, 0, N_PLANETS - 1);
+	ImGui::SliderInt("Planet index", &planet_index, 0, scene.planets.size() - 1);
 	scene.planets[planet_index].displayInterface();
 }
 

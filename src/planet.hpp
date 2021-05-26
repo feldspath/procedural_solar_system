@@ -14,7 +14,11 @@ private:
 
     // Rendering
     vcl::mesh m;
+
+public:
     vcl::mesh_drawable visual;
+
+private:
     static GLuint shader;
 
     // Post processing
@@ -69,6 +73,7 @@ public:
 
     // Getters
     vcl::vec3 getPosition();
+    vcl::vec3 getSpeed();
 
     // Update functions
     vcl::vec3 getPlanetRadiusAt(const vcl::vec3& posOnUnitSphere);
@@ -118,6 +123,7 @@ void Planet::renderWater(SCENE const& scene) {
     vcl::opengl_uniform(postProcessingQuad.shader, "waterBlendMultiplier", waterBlendMultiplier);
     vcl::opengl_uniform(postProcessingQuad.shader, "waterColorDeep", waterColorDeep);
     vcl::opengl_uniform(postProcessingQuad.shader, "waterColorSurface", waterColorSurface);
+    vcl::opengl_uniform(postProcessingQuad.shader, "lightSource", scene.light, false);
     draw(postProcessingQuad, scene);
 }
 

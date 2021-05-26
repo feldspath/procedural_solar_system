@@ -22,6 +22,8 @@ uniform vec4 waterColorSurface;
 uniform float near = 0.1;
 uniform float far  = 100.0;
 
+uniform vec3 lightSource;
+
 float LinearizeDepth(float depth)
 {
     float z = depth * 2.0 - 1.0; // back to NDC
@@ -59,7 +61,8 @@ void main() {
     vec3 camSpaceFrag = direction * depth / direction.z;
     float depthFromCamera = length(camSpaceFrag);
 
-    vec2 hitInfo = raySphere(vec3(viewMatrix * planetCenter), oceanLevel, vec3(0.0f, 0.0f, 0.0f), direction);
+    vec3 camSpacePlanet = vec3(viewMatrix * planetCenter);
+    vec2 hitInfo = raySphere(camSpacePlanet, oceanLevel, vec3(0.0f, 0.0f, 0.0f), direction);
     float dstToOcean = hitInfo.x;
     float dstThroughOcean = hitInfo.y;
     float oceanViewDepth = min(dstThroughOcean, depthFromCamera - dstToOcean);
@@ -68,7 +71,25 @@ void main() {
       vec4 oceanCol = mix(waterColorSurface, waterColorDeep, opticalDepth);
 
       float alpha = 1 - exp(-oceanViewDepth * oceanCol.w * waterBlendMultiplier);
-      FragColor = vec4(mix(vec3(FragColor), vec3(oceanCol), alpha), 1.0f);
+      vec3 color = mix(vec3(FragColor), vec3(oceanCol), alpha);
+
+      vec3 camSpaceLight = vec3(viewMatrix * vec4(lightSource, 1.0));
+      vec3 camSpaceActual = direction * dstToOcean;
+      vec3 N = normalize(camSpaceActual - camSpacePlanet);
+      vec3 L = normalize(camSpaceLight - camSpaceActual);
+
+      float diffuse = max(dot(N,L),0.0);
+      float specular = 0.0;
+      if(diffuse>0.0){
+        vec3 R = reflect(-L,N);
+        vec3 V = normalize(-camSpaceActual);
+        float specular_exp = 64;
+        specular = pow( max(dot(R,V),0.0), specular_exp );
+      }
+
+      FragColor = vec4(vec3(color) * diffuse+ vec3(1.0f, 1.0f, 1.0f) * specular, 1.0f);
+
+
     }
 
 }

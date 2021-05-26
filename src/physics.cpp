@@ -2,12 +2,14 @@
 #include "vcl/vcl.hpp"
 #include <vector>
 #include <iostream>
+#include "player.hpp"
 
 float const PhysicsComponent::G = (float)6.67430e-11;
-float PhysicsComponent::fixedDeltaTime = 0.02f;
+float PhysicsComponent::fixedDeltaTime = 0.01f;
 float PhysicsComponent::deltaTimeOffset;
 std::vector<PhysicsComponent*> PhysicsComponent::objects;
 PhysicsComponent PhysicsComponent::null;
+Player* PhysicsComponent::player = nullptr;
 
 PhysicsComponent::PhysicsComponent(float m, vcl::vec3 p, vcl::vec3 v) {
 	mass = m;
@@ -34,10 +36,20 @@ void PhysicsComponent::add_force(vcl::vec3 force) {
 
 vcl::vec3 PhysicsComponent::get_position() {
     float alpha = deltaTimeOffset / fixedDeltaTime;
-    std::cout << deltaTimeOffset << std::endl;
     return nextPosition * (1-alpha) + position * alpha;
+}
 
-    //return position;
+vcl::vec3 PhysicsComponent::get_speed() {
+    return velocity;
+}
+
+void PhysicsComponent::set_position(vcl::vec3 position) {
+    this->position = position;
+    this->nextPosition = position;
+}
+
+void PhysicsComponent::set_speed(vcl::vec3 speed) {
+    velocity = speed;
 }
 
 
@@ -50,8 +62,6 @@ void PhysicsComponent::update(float deltaTime) {
         updateCount++;
     }
     deltaTimeOffset = timeSpent - deltaTime;
-    //std::cout << updateCount << std::endl;
-    
 
     for (int i = 0; i < objects.size(); i++)
         objects[i]->nextForce = vcl::vec3(0.0f, 0.0f, 0.0f);
@@ -63,6 +73,9 @@ void PhysicsComponent::singleUpdate() {
     for (int i = 0; i < n; i++) {
         objects[i]->position = objects[i]->nextPosition;
     }
+
+    if (player != nullptr)
+        player->clamp_to_planets();
 
     for (int i = 0; i < n; i++) {
         PhysicsComponent* current = objects[i];
@@ -78,13 +91,7 @@ void PhysicsComponent::singleUpdate() {
         }
         accel *= G;
         accel += current->nextForce / current->mass;
-        //if (i == 0) {
-        //    std::cout << forces.x << "," << forces.y << "," << forces.z << std::endl;
-        //    std::cout << "velocity : " << current->velocity.x << ',' << current->velocity.y << ',' << current->velocity.z << std::endl;
-        //}
-        //current->velocity += accel * fixedDeltaTime;
         current->velocity += accel * fixedDeltaTime;
-        current->nextPosition = current->position + current->velocity * fixedDeltaTime;
-        
+        current->nextPosition = current->position + (current->velocity + current->additionalSpeed) * fixedDeltaTime;
     }    
 }

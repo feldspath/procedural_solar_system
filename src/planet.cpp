@@ -169,6 +169,10 @@ vcl::vec3 Planet::getPosition() {
     return physics->get_position();
 }
 
+vcl::vec3 Planet::getSpeed() {
+    return physics->get_speed();
+}
+
 void Planet::setCustomUniforms() {
     glUseProgram(shader);
     opengl_uniform(shader, "textureScale", textureScale);
@@ -399,7 +403,7 @@ void Planet::displayInterface() {
             waterColorDeep = vec4(colS[0], colS[1], colS[2], colS[3]);
 
             ImGui::SliderFloat("Depth multiplier", &depthMultiplier, 0.0f, 5.0f);
-            ImGui::SliderFloat("Water blend multipler", &waterBlendMultiplier, 0.0f, 10.0f);
+            ImGui::SliderFloat("Water blend multipler", &waterBlendMultiplier, 0.0f, 60.0f);
             ImGui::TreePop();
 
         }
