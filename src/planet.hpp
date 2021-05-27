@@ -67,6 +67,17 @@ public:
 	float textureSharpness = 5.0f;
 	float normalMapInfluence = 0.2f;
 
+    // Atmosphere
+    bool hasAtmosphere = false;
+    float atmosphereHeight = 3.0f;
+    float densityFalloff = 3.0f;
+
+    float wavelengths[3] = { 700, 530, 440 };
+    float scatteringStrength = 1.0f;
+
+    static int nScatteringPoints;
+    static int nOpticalDepthPoints;
+
     // Constructors
     Planet() {}
     Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity = {0, 0, 0}, int division=200, bool update_now=true);
@@ -117,13 +128,25 @@ void Planet::renderPlanet(SCENE const& scene) {
 template <typename SCENE>
 void Planet::renderWater(SCENE const& scene) {
     vcl::vec4 center = vcl::vec4(visual.transform.translate, 1.0f);
-    vcl::opengl_uniform(postProcessingQuad.shader, "planetCenter", center);
+    vcl::opengl_uniform(postProcessingQuad.shader, "worldPlanetCenter", center);
     vcl::opengl_uniform(postProcessingQuad.shader, "oceanLevel", waterLevel * radius);
     vcl::opengl_uniform(postProcessingQuad.shader, "depthMultiplier", depthMultiplier);
     vcl::opengl_uniform(postProcessingQuad.shader, "waterBlendMultiplier", waterBlendMultiplier);
     vcl::opengl_uniform(postProcessingQuad.shader, "waterColorDeep", waterColorDeep);
     vcl::opengl_uniform(postProcessingQuad.shader, "waterColorSurface", waterColorSurface);
-    vcl::opengl_uniform(postProcessingQuad.shader, "lightSource", scene.light, false);
+    vcl::opengl_uniform(postProcessingQuad.shader, "lightSource", scene.light);
+    vcl::opengl_uniform(postProcessingQuad.shader, "hasAtmosphere", hasAtmosphere);
+    if (hasAtmosphere) {
+        vcl::opengl_uniform(postProcessingQuad.shader, "planetRadius", radius);
+        vcl::opengl_uniform(postProcessingQuad.shader, "atmosphereHeight", atmosphereHeight * radius);
+        vcl::opengl_uniform(postProcessingQuad.shader, "densityFalloff", densityFalloff);
+
+        vcl::vec3 scatteringCoeffs;
+        scatteringCoeffs.x = std::pow(200 / wavelengths[0], 4) * scatteringStrength;
+        scatteringCoeffs.y = std::pow(200 / wavelengths[1], 4) * scatteringStrength;
+        scatteringCoeffs.z = std::pow(200 / wavelengths[2], 4) * scatteringStrength;
+        vcl::opengl_uniform(postProcessingQuad.shader, "scatteringCoeffs", scatteringCoeffs);
+    }
     draw(postProcessingQuad, scene);
 }
 
@@ -136,5 +159,9 @@ void Planet::startWaterRendering(SCENE const& scene) {
     // Matrices
     vcl::opengl_uniform(postProcessingQuad.shader, "viewMatrix", scene.camera.matrix_view(), true);
     vcl::opengl_uniform(postProcessingQuad.shader, "perspectiveInverse", inverse(scene.projection), true);
+
+    vcl::opengl_uniform(postProcessingQuad.shader, "nScatteringPoints", nScatteringPoints);
+    vcl::opengl_uniform(postProcessingQuad.shader, "nOpticalDepthPoints", nOpticalDepthPoints);
+
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 }

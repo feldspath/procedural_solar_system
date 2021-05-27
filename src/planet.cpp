@@ -50,6 +50,11 @@ static void buildImporterLookupTable() {
     importerLookupTable.push_back(offsetof(Planet, textureScale));
     importerLookupTable.push_back(offsetof(Planet, textureSharpness));
     importerLookupTable.push_back(offsetof(Planet, normalMapInfluence));
+    importerLookupTable.push_back(offsetof(Planet, hasAtmosphere));
+    importerLookupTable.push_back(offsetof(Planet, atmosphereHeight));
+    importerLookupTable.push_back(offsetof(Planet, densityFalloff));
+    importerLookupTable.push_back(offsetof(Planet, wavelengths));
+    importerLookupTable.push_back(offsetof(Planet, scatteringStrength));
 
     importerMemberSizes.push_back(sizeof(Planet::radius));
     importerMemberSizes.push_back(sizeof(Planet::rotateSpeed));
@@ -74,6 +79,11 @@ static void buildImporterLookupTable() {
     importerMemberSizes.push_back(sizeof(Planet::textureScale));
     importerMemberSizes.push_back(sizeof(Planet::textureSharpness));
     importerMemberSizes.push_back(sizeof(Planet::normalMapInfluence));
+    importerMemberSizes.push_back(sizeof(Planet::hasAtmosphere));
+    importerMemberSizes.push_back(sizeof(Planet::atmosphereHeight));
+    importerMemberSizes.push_back(sizeof(Planet::densityFalloff));
+    importerMemberSizes.push_back(sizeof(Planet::wavelengths));
+    importerMemberSizes.push_back(sizeof(Planet::scatteringStrength));
 
 
     // Check wether or not the system is little endian
@@ -92,6 +102,8 @@ GLuint Planet::depth_buffer;
 GLuint Planet::intermediate_image;
 GLuint Planet::intermediate_image_bis;
 bool Planet::base_intermediate_image;
+int Planet::nScatteringPoints = 15;
+int Planet::nOpticalDepthPoints = 15;
 
 vec3 Planet::getPlanetRadiusAt(const vec3& posOnUnitSphere) {
     // Continent (simple perlin noise)
@@ -106,7 +118,7 @@ vec3 Planet::getPlanetRadiusAt(const vec3& posOnUnitSphere) {
     float continentShape = smoothMax(perlin_noise, oceanFloorShape, oceanFloorSmoothing);
     continentShape *= (continentShape < 0) ? 1 + oceanDepthMultiplier : 1;
 
-    vec3 newPosition = radius * posOnUnitSphere * (1 + (ridges + continentShape) * 0.1f);
+    vec3 newPosition = radius * posOnUnitSphere * (1 + (ridges + continentShape) * 0.01f);
     return newPosition;
 }
 
@@ -366,7 +378,7 @@ void Planet::displayInterface() {
 
 
         if (ImGui::TreeNode("Terrain generation")) {
-            update |= ImGui::SliderFloat("Radius", &radius, 0.0f, 3.0f);
+            update |= ImGui::SliderFloat("Radius", &radius, 0.0f, 30.0f);
             if (ImGui::TreeNode("Continent noise")) {
                 update |= displayPerlinNoiseGui(continentParameters);
                 ImGui::TreePop();
@@ -411,6 +423,19 @@ void Planet::displayInterface() {
             ImGui::SliderFloat("Scale", &textureScale, 0.1f, 2.0f);
             ImGui::SliderFloat("Sharpness", &textureSharpness, 0.1f, 5.0f);
             ImGui::SliderFloat("Normal map influence", &normalMapInfluence, 0.0f, 1.0f);
+            ImGui::TreePop();
+        }
+
+        
+        if (ImGui::TreeNode("Atmosphere")) {
+            ImGui::Checkbox("Atmosphere", &hasAtmosphere);
+            ImGui::SliderFloat("Atmosphere radius", &atmosphereHeight, 0.0f, 2.0f);
+            ImGui::SliderFloat("Density falloff", &densityFalloff, 0.0f, 10.0f);
+            ImGui::SliderInt("Scattering points", &Planet::nScatteringPoints, 0, 20);
+            ImGui::SliderInt("Optical depth points", &Planet::nOpticalDepthPoints, 0, 20);
+
+            ImGui::SliderFloat3("Wave lengths", wavelengths, 400, 800);
+            ImGui::SliderFloat("Scattering strength", &scatteringStrength, 0.0f, 10.0f);
             ImGui::TreePop();
         }
     }

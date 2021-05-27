@@ -7,20 +7,28 @@ in vec2 uv_frag;
 uniform sampler2D image_texture;
 uniform sampler2D image_texture_2; // Depth buffer
 
-uniform vec4 planetCenter;
-
 uniform mat4 viewMatrix;
 uniform mat4 perspectiveInverse;
+uniform float near = 0.1;
+uniform float far  = 100.0;
 
-uniform float oceanLevel=1.0f;
-uniform float depthMultiplier = 6.0f;
-uniform float waterBlendMultiplier = 60.0f;
+uniform vec4 worldPlanetCenter;
+uniform float planetRadius;
 
+uniform float oceanLevel=1.0;
+uniform float depthMultiplier = 6.0;
+uniform float waterBlendMultiplier = 60.0;
 uniform vec4 waterColorDeep;
 uniform vec4 waterColorSurface;
 
-uniform float near = 0.1;
-uniform float far  = 100.0;
+uniform bool hasAtmosphere = false;
+uniform float atmosphereHeight = 30.0;
+uniform int nScatteringPoints = 5;
+uniform int nOpticalDepthPoints = 5;
+uniform float densityFalloff = 3.0;
+uniform vec3 scatteringCoeffs;
+
+
 
 uniform vec3 lightSource;
 
@@ -54,14 +62,56 @@ vec3 cameraDirection(vec2 screenPos) {
   return normalize(vec3(perspectiveInverse * vec4(screenPos, -1.0f, 1.0f)));
 }
 
+float densityAtPoint(vec3 point, vec3 planetCenter) {
+  float altitude = length(point - planetCenter) - planetRadius;
+  float normalizedAltitude = altitude / (atmosphereHeight - planetRadius);
+  return exp(-normalizedAltitude * densityFalloff) * (1 - normalizedAltitude);
+}
+
+float opticalDepth(vec3 point, vec3 direction, float rayLength, vec3 planetCenter) {
+  vec3 samplePoint = point;
+  float stepSize = rayLength / (nOpticalDepthPoints - 1);
+  float opticalDepth = 0.0;
+
+  for (int i = 0; i < nOpticalDepthPoints; i++) {
+    opticalDepth += densityAtPoint(samplePoint, planetCenter) * stepSize;
+    samplePoint += direction * stepSize;
+  }
+  return opticalDepth;
+}
+
+vec3 calculateLight(vec3 rayOrigin, vec3 rayDirection, float rayLength, vec3 planetCenter, vec3 lightPosition, vec3 originalColor) {
+  vec3 scatterPoint = rayOrigin;
+  float stepSize = rayLength / (nScatteringPoints - 1);
+  vec3 scatteredLight = vec3(0.0);
+  float viewRayOpticalDepth = 0.0;
+
+  for (int i = 0; i < nScatteringPoints; i++) {
+    vec3 dirToSun = normalize(lightPosition-scatterPoint);
+    float sunRayLength = raySphere(planetCenter, atmosphereHeight, scatterPoint, dirToSun).y;
+    float sunRayOpticalDepth = opticalDepth(scatterPoint, dirToSun, sunRayLength, planetCenter);
+    viewRayOpticalDepth = opticalDepth(scatterPoint, -rayDirection, stepSize * i, planetCenter);
+    vec3 transmittance = exp(-(sunRayOpticalDepth + viewRayOpticalDepth) * scatteringCoeffs);
+    float localDensity = densityAtPoint(scatterPoint, planetCenter);
+
+    scatteredLight += localDensity * transmittance * scatteringCoeffs * stepSize;
+    scatterPoint += rayDirection * stepSize;
+  }
+  float originalColorTransmittance = exp(-viewRayOpticalDepth);
+
+  return scatteredLight + originalColor * originalColorTransmittance;
+}
+
 void main() {
     FragColor = texture(image_texture, uv_frag);
     float depth = LinearizeDepth(texture(image_texture_2, uv_frag).r);
     vec3 direction = cameraDirection(2 * uv_frag - 1);
     vec3 camSpaceFrag = direction * depth / direction.z;
     float depthFromCamera = length(camSpaceFrag);
+    vec3 camSpacePlanet = vec3(viewMatrix * worldPlanetCenter);
+    vec3 camSpaceLight = vec3(viewMatrix * vec4(lightSource, 1.0));
 
-    vec3 camSpacePlanet = vec3(viewMatrix * planetCenter);
+    // Water shader
     vec2 hitInfo = raySphere(camSpacePlanet, oceanLevel, vec3(0.0f, 0.0f, 0.0f), direction);
     float dstToOcean = hitInfo.x;
     float dstThroughOcean = hitInfo.y;
@@ -73,7 +123,6 @@ void main() {
       float alpha = 1 - exp(-oceanViewDepth * oceanCol.w * waterBlendMultiplier);
       vec3 color = mix(vec3(FragColor), vec3(oceanCol), alpha);
 
-      vec3 camSpaceLight = vec3(viewMatrix * vec4(lightSource, 1.0));
       vec3 camSpaceActual = direction * dstToOcean;
       vec3 N = normalize(camSpaceActual - camSpacePlanet);
       vec3 L = normalize(camSpaceLight - camSpaceActual);
@@ -83,13 +132,24 @@ void main() {
       if(diffuse>0.0){
         vec3 R = reflect(-L,N);
         vec3 V = normalize(-camSpaceActual);
-        float specular_exp = 64;
+        float specular_exp = 128;
         specular = pow( max(dot(R,V),0.0), specular_exp );
       }
 
-      FragColor = vec4(vec3(color) * diffuse+ vec3(1.0f, 1.0f, 1.0f) * specular, 1.0f);
-
-
+      FragColor = vec4(color * (diffuse + 0.01)+ vec3(1.0f, 1.0f, 1.0f) * specular * 0.3, 1.0f);
+      depthFromCamera = dstToOcean;
     }
 
+    if (hasAtmosphere) {
+      // Atmosphere shader
+      hitInfo = raySphere(camSpacePlanet, atmosphereHeight, vec3(0.0f, 0.0f, 0.0f), direction);
+      float dstToAtmosphere = hitInfo.x;
+      float dstThroughAtmosphere = hitInfo.y;
+      float atmosphereViewDepth = min(dstThroughAtmosphere, depthFromCamera - dstToAtmosphere);
+      if (atmosphereViewDepth > 0) {
+        vec3 firstPointInAtmosphere = direction * dstToAtmosphere;
+        vec3 intensity = calculateLight(firstPointInAtmosphere, direction, atmosphereViewDepth, camSpacePlanet, camSpaceLight, vec3(FragColor));
+        FragColor = vec4(intensity, 1.0);
+      }
+    }
 }

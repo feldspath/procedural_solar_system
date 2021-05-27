@@ -9,6 +9,8 @@
 #include "camera_fps.hpp"
 #include "player.hpp"
 
+// 0 is edit mode
+// 1 is explore mode
 #define CAMERA_TYPE 0
 
 using namespace vcl;
@@ -113,7 +115,7 @@ int main(int, char* argv[])
 			scene.player.update_position(direction);
 		#else
 			scene.camera.center_of_rotation = scene.planets[planet_index].getPosition();
-			scene.light = scene.camera.position();
+			//scene.light = scene.camera.position();
 		#endif
 		
 		// Physics
@@ -170,7 +172,7 @@ void initialize_data()
 	user.global_frame = mesh_drawable(mesh_primitive_frame());
 	user.gui.display_frame = false;
 
-	float sun_mass = (float)1e12;
+	float sun_mass = (float)1e13;
 
 	#if CAMERA_TYPE
 		scene.camera.position_camera = { 25, 5, 10};
@@ -185,21 +187,21 @@ void initialize_data()
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
 
 	
-	scene.planets.resize(4);
-	scene.planets[0] = Planet(2.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 100, true);
-	scene.planets[1] = Planet(1.0f, 1e9, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 100, true);
-	scene.planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 100, true);
-	scene.planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, true);
+	scene.planets.resize(1);
+	scene.planets[0] = Planet(3.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 700, false);
+	//scene.planets[1] = Planet(1.0f, 1e9, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 100, true);
+	//scene.planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 100, true);
+	//scene.planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, true);
 
 	planet_index = 0;
 
 	// Light
-	scene.light = { 10.0f, -10.0f, 0.0f };
+	scene.light = { 100.0f, -100.0f, 0.0f };
 
 	scene.skybox = Skybox("assets/cubemap.png");
 
-	//scene.planets[0].importFromFile("planets/test6.pbf");
-	scene.planets[0].rotateSpeed = 0.1f;
+	scene.planets[0].importFromFile("planets/example.pbf");
+	//scene.planets[0].rotateSpeed = 0.1f;
 	//planets[1].importFromFile("planets/rocky.txt");
 	//planets[2].importFromFile("planets/livable.txt");
 	//planets[3].importFromFile("planets/sat1.txt");

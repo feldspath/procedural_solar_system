@@ -7,7 +7,7 @@
 class Player {
 private:
 	camera_fps* camera;
-	float walkSpeed = 0.6f;
+	float walkSpeed = 0.3f;
 	float thrustForce = 500.0f; // Thrust force of the jetpack in N
 	float mass = 100.0f;
 	float height = 0.2f;
