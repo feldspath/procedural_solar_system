@@ -43,6 +43,10 @@ vcl::vec3 PhysicsComponent::get_speed() {
     return velocity;
 }
 
+float PhysicsComponent::get_mass() {
+    return mass;
+}
+
 void PhysicsComponent::set_position(vcl::vec3 position) {
     this->position = position;
     this->nextPosition = position;

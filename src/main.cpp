@@ -10,7 +10,7 @@
 #include "player.hpp"
 
 // 0 is edit mode
-// 1 is explore mode
+// 1 is explore mode	
 #define CAMERA_TYPE 0
 
 using namespace vcl;
@@ -42,6 +42,8 @@ struct scene_environment
 {
 	camera_fps camera;
 	mat4 projection;
+	mat4 projection;
+	mat4 farProjection;
 	vec3 light;
 	Player player;
 	std::vector<Planet> planets;
@@ -52,6 +54,8 @@ struct scene_environment
 {
 	camera_around_center camera;
 	mat4 projection;
+	mat4 farProjection;
+	mat4 nearProjection;
 	vec3 light;
 	std::vector<Planet> planets;
 	Skybox skybox;
@@ -68,8 +72,8 @@ void initialize_data();
 void display_scene();
 void display_interface();
 
-const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 1024;
+unsigned int SCR_WIDTH = 1280;
+unsigned int SCR_HEIGHT = 1024;
 
 float previousTime;
 float deltaTime;
@@ -111,7 +115,7 @@ int main(int, char* argv[])
 
 		// Camera 
 		#if CAMERA_TYPE
-			vec3 direction = { user.keyboard_state.front, user.keyboard_state.right, user.keyboard_state.up };
+			int3 direction = { user.keyboard_state.front, user.keyboard_state.right, user.keyboard_state.up };
 			scene.player.update_position(direction);
 		#else
 			scene.camera.center_of_rotation = scene.planets[planet_index].getPosition();
@@ -172,10 +176,10 @@ void initialize_data()
 	user.global_frame = mesh_drawable(mesh_primitive_frame());
 	user.gui.display_frame = false;
 
-	float sun_mass = (float)1e13;
+	float sun_mass = (float)3e16;
 
 	#if CAMERA_TYPE
-		scene.camera.position_camera = { 25, 5, 10};
+		scene.camera.position_camera = { 5000, 5, 10};
 		scene.camera.orientation_camera = rotation();
 		scene.player.bind_camera(&scene.camera);
 		scene.player.init_physics();
@@ -184,53 +188,99 @@ void initialize_data()
 	#else
 	#endif
 
-    Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
-
-	
-	scene.planets.resize(1);
-	scene.planets[0] = Planet(3.0f, sun_mass, { 0, 0, 0 }, {0, 0, 0}, 700, false);
-	//scene.planets[1] = Planet(1.0f, 1e9, { 10, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 10) + 0.3f, 0.1f}, 100, true);
-	//scene.planets[2] = Planet(1.0f, 3e10, { 25, 0, 0 }, {0, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.1f, 0.01f}, 100, true);
-	//scene.planets[3] = Planet(0.1f, 1e5, { 28, 0, 0 }, {-0.4f, sqrt(PhysicsComponent::G * sun_mass / 25) + 0.8f, 0.0f}, 100, true);
-
-	planet_index = 0;
-
-	// Light
-	scene.light = { 100.0f, -100.0f, 0.0f };
-
 	scene.skybox = Skybox("assets/cubemap.png");
 
-	scene.planets[0].importFromFile("planets/example.pbf");
-	//scene.planets[0].rotateSpeed = 0.1f;
-	//planets[1].importFromFile("planets/rocky.txt");
-	//planets[2].importFromFile("planets/livable.txt");
-	//planets[3].importFromFile("planets/sat1.txt");
+    Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
+	scene.planets.resize(6);
+	// Sun
+	scene.planets[0] = Planet("HeliosStar", sun_mass, { 0, 0, 0 }, {0, 0, 0}, 50);
+	scene.planets[0].isSun = true;
+	scene.light = { 0.0f, 0.0f, 0.0f };
+
+	// Other planets
+	scene.planets[1] = Planet("Vulkan", 0.1 / PhysicsComponent::G * 900, &(scene.planets[0]), 1000.0f, rand_interval(0.0f, 2*3.14f), 200);
+	scene.planets[1].waterGlow = true;
+
+	scene.planets[2] = Planet("Oculus", 0.2 / PhysicsComponent::G * 10000, &(scene.planets[0]), 3500.0f, rand_interval(0.0f, 2 * 3.14f), 200);
+	scene.planets[2].waterLevel /= 10.0f;
+	scene.planets[2].atmosphereHeight /= 10.0f;
+	scene.planets[3] = Planet("Scylla", 0.07 / PhysicsComponent::G * 400, &(scene.planets[2]), 300.0f, rand_interval(0.0f, 2 * 3.14f), 200);
+
+	scene.planets[4] = Planet("AethedisPrime", 0.1 / PhysicsComponent::G * 900, &(scene.planets[0]), 5000.0f, rand_interval(0.0f, 2 * 3.14f), 200);
+	scene.planets[4].visual.shading.phong.specular = 0.3f;
+
+	scene.planets[5] = Planet("M458", 0.07 / PhysicsComponent::G * 400, &(scene.planets[0]), 7000.0f, rand_interval(0.0f, 2 * 3.14f), 200);
+
+
+	planet_index = 1;
 }
 
+void builFrustrsums(float midPlane) {
+	float const aspect = SCR_WIDTH / static_cast<float>(SCR_HEIGHT);
+	scene.farProjection = projection_perspective(pi / 3, aspect, midPlane, 10000.0f);
+	scene.nearProjection = projection_perspective(pi / 3, aspect, 0.1f, midPlane);
+	Planet::interPlane = midPlane;
+}
 
-void display_scene()
-{
-    Planet::startPlanetRendering();
-	for (int i = 0; i < scene.planets.size(); i++)
-		scene.planets[i].renderPlanet(scene);
+void display_scene() {
+
+	int nearPlanetIndex = -1;
+	float midDistance = 100.0f;
+
+	std::vector<Planet*> farPlanets;
+	// Find the planet close to the player if it exists
+	// Create an adaptative frustrum for the multipass render
+	for (int i = 0; i < scene.planets.size(); i++) {
+		float dist = vcl::norm(scene.planets[i].getPosition() - scene.camera.position());
+		if (dist > midDistance + scene.planets[i].radius * 1.5f || nearPlanetIndex != -1)
+			farPlanets.push_back(&scene.planets[i]);
+		else {
+			nearPlanetIndex = i;
+			if (dist > midDistance - scene.planets[i].radius * 1.5f)
+				builFrustrsums(midDistance + scene.planets[i].radius * 1.5f);
+			else
+				builFrustrsums(midDistance);
+		}
+	}
+	if (nearPlanetIndex == -1)
+		builFrustrsums(midDistance);
+
+
+	// Render all the distant planets on the screen
+	scene.projection = scene.farProjection;
+	Planet::startPlanetRendering();
+	for (int i = 0; i < farPlanets.size(); i++)
+		if (i != 2)
+			farPlanets[i]->renderPlanet(scene);
 
 	scene.skybox.render(scene);
-   
-    Planet::startWaterRendering(scene);
-	for (int i = 0; i < scene.planets.size() - 1; i++) {
+
+	Planet::startWaterRendering(scene, false);
+	for (int i = farPlanets.size() - 1; i >= 1; i--) {
 		Planet::switchIntermediateTexture();
-		scene.planets[i].renderWater(scene);
+		farPlanets[i]->renderWater(scene);
 	}
 
-	Planet::renderFinalPlanet();
-	scene.planets[scene.planets.size()-1].renderWater(scene);
-    
-
+	if (nearPlanetIndex == -1) {
+		Planet::renderFinalPlanet();
+		farPlanets[0]->renderWater(scene);
+	}
+	else {
+		Planet::switchIntermediateTexture();
+		farPlanets.back()->renderWater(scene);
+		// We now need to render the near planet with the texture as the background.
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
+		scene.projection = scene.nearProjection;
+		scene.planets[nearPlanetIndex].renderPlanet(scene);
+		Planet::startWaterRendering(scene, true);
+		Planet::renderFinalPlanet();
+		scene.planets[nearPlanetIndex].renderWater(scene);
+	}
 }
 
 
-void display_interface()
-{
+void display_interface() {
 	ImGui::Checkbox("Frame", &user.gui.display_frame);
 	ImGui::Checkbox("Wireframe", &user.gui.display_wireframe);
 
@@ -243,17 +293,18 @@ void display_interface()
 }
 
 
-void window_size_callback(GLFWwindow* , int width, int height)
-{
+void window_size_callback(GLFWwindow* , int width, int height) {
 	glViewport(0, 0, width, height);
 	float const aspect = width / static_cast<float>(height);
-	scene.projection = projection_perspective(pi/3, aspect, 0.1f, 100.0f);
+	SCR_WIDTH = width;
+	SCR_HEIGHT = height;
+	scene.farProjection = projection_perspective(pi/3, aspect, 100.0f, 10000.0f);
+	scene.nearProjection = projection_perspective(pi/3, aspect, 0.1f, 100.0f);
 	Planet::buildTextures(width, height);
 }
 	
 
-void mouse_move_callback(GLFWwindow* window, double xpos, double ypos)
-{
+void mouse_move_callback(GLFWwindow* window, double xpos, double ypos) {
 	vec2 const  p1 = glfw_get_mouse_cursor(window, xpos, ypos);
 	vec2 const& p0 = user.mouse_prev;
 	glfw_state state = glfw_current_state(window);
@@ -318,8 +369,7 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
 	}
 }
 
-void opengl_uniform(GLuint shader, scene_environment const& current_scene)
-{
+void opengl_uniform(GLuint shader, scene_environment const& current_scene) {
 	opengl_uniform(shader, "projection", current_scene.projection, false);
 	opengl_uniform(shader, "view", scene.camera.matrix_view(), false);
 	opengl_uniform(shader, "light", scene.light, false);

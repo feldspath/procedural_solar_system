@@ -28,6 +28,7 @@ public:
 	void add_force(vcl::vec3 force);
 	vcl::vec3 get_position();
 	vcl::vec3 get_speed();
+	float get_mass();
 	void set_position(vcl::vec3 position);
 	void set_speed(vcl::vec3 speed);
 

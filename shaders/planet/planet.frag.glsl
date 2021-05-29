@@ -36,6 +36,8 @@ uniform vec3 steepColor;
 uniform vec3 flatLowColor;
 uniform vec3 flatHighColor;
 
+uniform bool isSun;
+
 vec4 colorFromTriplanarMapping() {
   vec2 uvxy = localCoords.xy / textureScale;
   vec2 uvyz = localCoords.yz / textureScale;
@@ -59,11 +61,13 @@ void main()
   vec3 normMap = normalize(vec3(textureSample) * 2.0f - 1.0f);
   vec3 N = normalize(fragment.normal);
   N = normalize(N + normMap * normalMapInfluence);
+  if (isSun)
+    N = -N;
 	vec3 L = normalize(light-fragment.position);
 
 	float diffuse = max(dot(N,L),0.0);
 	float specular = 0.0;
-	if(diffuse>0.0){
+	if(diffuse>0.0 && !isSun){
 		vec3 R = reflect(-L,N);
 		vec3 V = normalize(fragment.eye-fragment.position);
 		specular = pow( max(dot(R,V),0.0), specular_exp );

@@ -104,6 +104,9 @@ GLuint Planet::intermediate_image_bis;
 bool Planet::base_intermediate_image;
 int Planet::nScatteringPoints = 15;
 int Planet::nOpticalDepthPoints = 15;
+float Planet::nearPlane = 0.1f;
+float Planet::interPlane = 100.0f;
+float Planet::farPlane = 10000.0f;
 
 vec3 Planet::getPlanetRadiusAt(const vec3& posOnUnitSphere) {
     // Continent (simple perlin noise)
@@ -118,31 +121,42 @@ vec3 Planet::getPlanetRadiusAt(const vec3& posOnUnitSphere) {
     float continentShape = smoothMax(perlin_noise, oceanFloorShape, oceanFloorSmoothing);
     continentShape *= (continentShape < 0) ? 1 + oceanDepthMultiplier : 1;
 
-    vec3 newPosition = radius * posOnUnitSphere * (1 + (ridges + continentShape) * 0.01f);
+    vec3 newPosition = radius * posOnUnitSphere * (1 + (ridges + continentShape) * 0.03f);
     return newPosition;
 }
 
-Planet::Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity, int division, bool update_now) {
-    radius = r;
+
+
+Planet::Planet(char* name, float mass, vcl::vec3 position, vcl::vec3 velocity, int division) {
+
+    // Planet mesh
     //m = mesh_primitive_sphere();
     m = mesh_icosphere(radius, division);
-
     visual = mesh_drawable(m, shader);
     visual.shading.color = { 1.0f, 1.0f, 1.0f };
     visual.shading.phong.specular = 0.0f;
-    if (update_now)
-        updatePlanetMesh();
+    visual.shading.phong.ambient = 0.01f;
+    std::string path = "planets/" + std::string(name) + ".pbf";
+    importFromFile(path.c_str());
+    updatePlanetMesh();
 
+    // Texture
     //image_raw const im = image_load_png("assets/checker_texture.png");
     image_raw const im = image_load_png("assets/moon_normal_map1.png");
     GLuint const planetTexture = opengl_texture_to_gpu(im, GL_REPEAT, GL_REPEAT);
     visual.texture = planetTexture;
 
-    visual.shading.phong.ambient = 0.01f;
-    
-
+    // Physics
     physics = PhysicsComponent::generatePhysicsComponent(mass, position, velocity);
 }
+
+Planet::Planet(char* name, float mass, Planet* parent, float distanceToParent, float phase, int division) {
+    vcl::vec3 position = parent->getPosition() + distanceToParent * vcl::vec3(std::cos(phase), std::sin(phase), 0.0f);
+    vcl::vec3 velocity = std::sqrt(PhysicsComponent::G * parent->physics->get_mass() / distanceToParent) * vcl::vec3(-std::sin(phase), std::cos(phase), 0.0f) + parent->getSpeed();
+    *this = Planet(name, mass, position, velocity, division);
+}
+
+
 
 void Planet::updatePlanetMesh() {
     continentParameters.octave = (int)continentParameters.octave;
@@ -193,6 +207,8 @@ void Planet::setCustomUniforms() {
     opengl_uniform(shader, "steepColor", steepColor);
     opengl_uniform(shader, "flatLowColor", flatLowColor);
     opengl_uniform(shader, "flatHighColor", flatHighColor);
+    opengl_uniform(shader, "isSun", isSun);
+    
 }
 
 void Planet::updateRotation(float deltaTime) {
@@ -246,13 +262,11 @@ void Planet::importFromFile(const char* path) {
             if (little_endian)
                 *((char*)this + importerLookupTable[i] + j) = buffer[idx++];
             else
-                *((char*)this + importerLookupTable[i] + size - 1 - j) = buffer[idx++];
+                std::cerr << "ERROR: BIG_ENDIAN NOT SUPPORTED\n";
         }
             
         i++;
     }
-
-    updatePlanetMesh();
 }
 
 
@@ -325,7 +339,7 @@ void Planet::startPlanetRendering() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, intermediate_image, 0);
     base_intermediate_image = true;
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 }
 
 void Planet::switchIntermediateTexture() {
@@ -338,8 +352,8 @@ void Planet::switchIntermediateTexture() {
         postProcessingQuad.texture = intermediate_image_bis;
     }
     base_intermediate_image = !base_intermediate_image;
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    //glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    //glClear(GL_COLOR_BUFFER_BIT);
 }
 
 void Planet::renderFinalPlanet() {
@@ -356,7 +370,7 @@ void Planet::displayInterface() {
     bool update = false;
     if (ImGui::CollapsingHeader("Planet parameters")) {
 
-        ImGui::SliderFloat("Rotation speed", &rotateSpeed, -5.0f, 5.0f);
+        ImGui::SliderFloat("Rotation speed", &rotateSpeed, -0.2f, 0.2f);
 
         if (ImGui::TreeNode("Terrain Color")) {
             float col1[3] = { steepColor.x,steepColor.y , steepColor.z };
@@ -378,7 +392,7 @@ void Planet::displayInterface() {
 
 
         if (ImGui::TreeNode("Terrain generation")) {
-            update |= ImGui::SliderFloat("Radius", &radius, 0.0f, 30.0f);
+            update |= ImGui::SliderFloat("Radius", &radius, 0.0f, 300.0f);
             if (ImGui::TreeNode("Continent noise")) {
                 update |= displayPerlinNoiseGui(continentParameters);
                 ImGui::TreePop();
@@ -404,7 +418,7 @@ void Planet::displayInterface() {
             ImGui::TreePop();
         }
         if (ImGui::TreeNode("Water")) {
-            ImGui::SliderFloat("Water level", &waterLevel, 0.0f, 3.0f);
+            ImGui::SliderFloat("Water level", &waterLevel, 0.9f, 1.5f);
 
             // Water Color
             float colD[4] = { waterColorSurface.x, waterColorSurface.y , waterColorSurface.z, waterColorSurface.w };
@@ -414,7 +428,7 @@ void Planet::displayInterface() {
             ImGui::ColorEdit4("Deep water", colS);
             waterColorDeep = vec4(colS[0], colS[1], colS[2], colS[3]);
 
-            ImGui::SliderFloat("Depth multiplier", &depthMultiplier, 0.0f, 5.0f);
+            ImGui::SliderFloat("Depth multiplier", &depthMultiplier, 0.0f, 0.01f);
             ImGui::SliderFloat("Water blend multipler", &waterBlendMultiplier, 0.0f, 60.0f);
             ImGui::TreePop();
 
@@ -429,13 +443,13 @@ void Planet::displayInterface() {
         
         if (ImGui::TreeNode("Atmosphere")) {
             ImGui::Checkbox("Atmosphere", &hasAtmosphere);
-            ImGui::SliderFloat("Atmosphere radius", &atmosphereHeight, 0.0f, 2.0f);
+            ImGui::SliderFloat("Atmosphere radius", &atmosphereHeight, 100.0f, 150.0f);
             ImGui::SliderFloat("Density falloff", &densityFalloff, 0.0f, 10.0f);
             ImGui::SliderInt("Scattering points", &Planet::nScatteringPoints, 0, 20);
             ImGui::SliderInt("Optical depth points", &Planet::nOpticalDepthPoints, 0, 20);
 
             ImGui::SliderFloat3("Wave lengths", wavelengths, 400, 800);
-            ImGui::SliderFloat("Scattering strength", &scatteringStrength, 0.0f, 10.0f);
+            ImGui::SliderFloat("Scattering strength", &scatteringStrength, 0.0f, 10000.0f);
             ImGui::TreePop();
         }
     }

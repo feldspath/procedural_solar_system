@@ -78,9 +78,18 @@ public:
     static int nScatteringPoints;
     static int nOpticalDepthPoints;
 
+    // Misc
+    bool isSun = false;
+    bool waterGlow = false;
+
+    static float nearPlane;
+    static float interPlane;
+    static float farPlane;
+
     // Constructors
     Planet() {}
-    Planet(float r, float mass, vcl::vec3 position, vcl::vec3 velocity = {0, 0, 0}, int division=200, bool update_now=true);
+    Planet(char* name, float mass, vcl::vec3 position, vcl::vec3 velocity = {0, 0, 0}, int division=200);
+    Planet(char* name, float mass, Planet* parent, float distanceToParent, float phase, int division = 200);
 
     // Getters
     vcl::vec3 getPosition();
@@ -104,7 +113,7 @@ public:
     static void startPlanetRendering();
     static void switchIntermediateTexture();
     static void renderFinalPlanet();
-    template <typename SCENE> static void startWaterRendering(SCENE const& scene);
+    template <typename SCENE> static void startWaterRendering(SCENE const& scene, bool nearPlanets);
 
 private:
     static void buildFbo(const unsigned int width, const unsigned int height);
@@ -121,13 +130,13 @@ template <typename SCENE>
 void Planet::renderPlanet(SCENE const& scene) {
     setCustomUniforms();
     visual.transform.translate = physics->get_position();
-
     vcl::draw(visual, scene);
 }
 
 template <typename SCENE>
 void Planet::renderWater(SCENE const& scene) {
     vcl::vec4 center = vcl::vec4(visual.transform.translate, 1.0f);
+    visual.transform.translate = physics->get_position();
     vcl::opengl_uniform(postProcessingQuad.shader, "worldPlanetCenter", center);
     vcl::opengl_uniform(postProcessingQuad.shader, "oceanLevel", waterLevel * radius);
     vcl::opengl_uniform(postProcessingQuad.shader, "depthMultiplier", depthMultiplier);
@@ -142,23 +151,35 @@ void Planet::renderWater(SCENE const& scene) {
         vcl::opengl_uniform(postProcessingQuad.shader, "densityFalloff", densityFalloff);
 
         vcl::vec3 scatteringCoeffs;
-        scatteringCoeffs.x = std::pow(200 / wavelengths[0], 4) * scatteringStrength;
-        scatteringCoeffs.y = std::pow(200 / wavelengths[1], 4) * scatteringStrength;
-        scatteringCoeffs.z = std::pow(200 / wavelengths[2], 4) * scatteringStrength;
+        scatteringCoeffs.x = std::pow(50 / wavelengths[0], 4) * scatteringStrength;
+        scatteringCoeffs.y = std::pow(50 / wavelengths[1], 4) * scatteringStrength;
+        scatteringCoeffs.z = std::pow(50 / wavelengths[2], 4) * scatteringStrength;
         vcl::opengl_uniform(postProcessingQuad.shader, "scatteringCoeffs", scatteringCoeffs);
     }
+    vcl::opengl_uniform(postProcessingQuad.shader, "isSun", isSun);
+    vcl::opengl_uniform(postProcessingQuad.shader, "waterGlow", waterGlow);
+    
     draw(postProcessingQuad, scene);
 }
 
 template <typename SCENE>
-void Planet::startWaterRendering(SCENE const& scene) {
+void Planet::startWaterRendering(SCENE const& scene, bool nearPlanets) {
     glDisable(GL_DEPTH_TEST);
 
     glUseProgram(postProcessingQuad.shader);
 
     // Matrices
-    vcl::opengl_uniform(postProcessingQuad.shader, "viewMatrix", scene.camera.matrix_view(), true);
-    vcl::opengl_uniform(postProcessingQuad.shader, "perspectiveInverse", inverse(scene.projection), true);
+    vcl::opengl_uniform(postProcessingQuad.shader, "viewMatrix", scene.camera.matrix_view());
+    vcl::opengl_uniform(postProcessingQuad.shader, "perspectiveInverse", inverse(scene.projection));
+    
+    if (nearPlanets) {
+        vcl::opengl_uniform(postProcessingQuad.shader, "near", nearPlane);
+        vcl::opengl_uniform(postProcessingQuad.shader, "far", interPlane);
+    }
+    else {
+        vcl::opengl_uniform(postProcessingQuad.shader, "near", interPlane);
+        vcl::opengl_uniform(postProcessingQuad.shader, "far", farPlane);
+    }
 
     vcl::opengl_uniform(postProcessingQuad.shader, "nScatteringPoints", nScatteringPoints);
     vcl::opengl_uniform(postProcessingQuad.shader, "nOpticalDepthPoints", nOpticalDepthPoints);
