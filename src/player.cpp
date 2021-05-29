@@ -11,10 +11,6 @@ void Player::bind_planets(std::vector<Planet>* planets) {
 	this->planets = planets;
 }
 
-void Player::init_physics() {
-	physics = PhysicsComponent::generatePhysicsComponent(mass, camera->position_camera);
-}
-
 void Player::update_position(vcl::int3 direction) {
 	vcl::vec3 dir = direction.x * camera->front() + direction.y * camera->right() + direction.z * camera->up();
 	float dir_norm = vcl::norm(dir);
@@ -22,37 +18,35 @@ void Player::update_position(vcl::int3 direction) {
     // Movement
     if (!onGround) {
         // If we're in space, use the jetpack
-        if (dir_norm > 0.1f)
-            physics->add_force(thrustForce * dir / dir_norm);
+        if (jetpackOn && dir_norm > 0.1f)
+            nextForce = thrustForce * dir / dir_norm;
     }
     else {
         // If we're on a planet, we walk
         if (dir_norm > 0.1f)
-            physics->additionalSpeed = dir / dir_norm * walkSpeed;
+            additionalSpeed = dir / dir_norm * walkSpeed;
         else
-            physics->additionalSpeed = vcl::vec3(0.0f, 0.0f, 0.0f);
+            additionalSpeed = vcl::vec3(0.0f, 0.0f, 0.0f);
         
-        // We can still thrust up
-        if (direction.z == 1)
-            physics->add_force(thrustForce * camera->up());
+        if (jetpackOn && dir_norm > 0.1f)
+            nextForce = thrustForce * dir / dir_norm;
     }
 
     // Orientation
     if (currentPlanet != -1) {
         // We update the camera orientation
-        vcl::vec3 newRight = vcl::normalize(vcl::cross(camera->front(), physics->get_position() - planets->at(currentPlanet).getPosition()));
+        vcl::vec3 newRight = vcl::normalize(vcl::cross(camera->front(), -planets->at(currentPlanet).getPosition()));
         vcl::vec3 newUp = vcl::normalize(vcl::cross(newRight, camera->front()));
         vcl::mat3 newMatrix({ newRight, newUp, -camera->front() });
         camera->orientation_camera = vcl::rotation(vcl::transpose(newMatrix));
     }
-    camera->position_camera = physics->get_position();
+    camera->position_camera = vcl::vec3(0.0f, 0.0f, 0.0f);
 }
 
 void Player::clamp_to_planets() {
     for (int i = 0; i < planets->size(); i++) {
-        vcl::vec3 camPos = physics->get_position();
         vcl::vec3 planetPos = planets->at(i).getPosition();
-        vcl::vec3 playerPosToPlanet = camPos - planetPos;
+        vcl::vec3 playerPosToPlanet = -planetPos;
 
         vcl::mat4 planetModel = planets->at(i).visual.transform.matrix();
         vcl::vec4 posOnSphere = vcl::inverse(planetModel) * vcl::vec4(playerPosToPlanet.x, playerPosToPlanet.y, playerPosToPlanet.z, 0.0f);
@@ -65,21 +59,31 @@ void Player::clamp_to_planets() {
         if (playerHeight < heightAtPlayer + height) {
             // set the player height to the correct one
             vcl::vec3 newPos = playerPosToPlanet / playerHeight * (heightAtPlayer + height) + planetPos;
-            physics->set_position(vcl::vec3(newPos.x, newPos.y, newPos.z));
+            for (int i = 0; i < PhysicsComponent::objects.size(); i++) {
+                PhysicsComponent::objects[i]->set_position(PhysicsComponent::objects[i]->get_position() - newPos);
+            }
 
             // reset its speed relative to the planet
-            vcl::vec3 newSpeed = planets->at(i).getSpeed() + planets->at(i).rotateSpeed * vcl::cross(vcl::vec3(0.0f, 0.0f, 1.0f), newPos - planetPos);
-            physics->set_speed(vcl::vec3(newSpeed.x, newSpeed.y, newSpeed.z));
+            vcl::vec3 newSpeed = planets->at(i).getSpeed() + planets->at(i).rotateSpeed * vcl::cross(vcl::vec3(0.0f, 0.0f, 1.0f), newPos - planetPos) + currentSpeed + additionalSpeed;
+            for (int i = 0; i < PhysicsComponent::objects.size(); i++)
+                PhysicsComponent::objects[i]->set_speed(PhysicsComponent::objects[i]->get_speed() - newSpeed + currentSpeed + additionalSpeed);
+
+            currentSpeed = vcl::vec3(newSpeed.x, newSpeed.y, newSpeed.z);
 
             currentPlanet = i;
             onGround = true;
             break;
         }
         else if (i == currentPlanet) {
-            if (playerHeight > 1.3f * planets->at(i).radius)
+            if (playerHeight > planets->at(i).radius * (planets->at(i).hasAtmosphere ? planets->at(i).atmosphereHeight : 1.5f))
                 currentPlanet = -1;
             else
                 onGround = false;
         }
     }
+}
+
+void Player::toggleJetpack() {
+    jetpackOn = !jetpackOn;
+    std::cout << "Jetpack is " << jetpackOn << std::endl;
 }

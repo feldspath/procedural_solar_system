@@ -138,7 +138,7 @@ Planet::Planet(char* name, float mass, vcl::vec3 position, vcl::vec3 velocity, i
     visual.shading.phong.ambient = 0.01f;
     std::string path = "planets/" + std::string(name) + ".pbf";
     importFromFile(path.c_str());
-    updatePlanetMesh();
+    //updatePlanetMesh();
 
     // Texture
     //image_raw const im = image_load_png("assets/checker_texture.png");
@@ -185,7 +185,9 @@ void Planet::updatePlanetMesh() {
 
     }
     m.compute_normal();
+}
 
+void Planet::updateVisual() {
     visual.update_position(m.position);
     visual.update_normal(m.normal);
     visual.update_color(m.color);

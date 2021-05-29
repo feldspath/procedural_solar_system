@@ -98,6 +98,7 @@ public:
     // Update functions
     vcl::vec3 getPlanetRadiusAt(const vcl::vec3& posOnUnitSphere);
 	void updatePlanetMesh();
+    void updateVisual();
 	void updateRotation(float deltaTime);
 
     // Rendering

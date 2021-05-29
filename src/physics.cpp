@@ -5,7 +5,7 @@
 #include "player.hpp"
 
 float const PhysicsComponent::G = (float)6.67430e-11;
-float PhysicsComponent::fixedDeltaTime = 0.01f;
+float PhysicsComponent::fixedDeltaTime = 0.005f;
 float PhysicsComponent::deltaTimeOffset;
 std::vector<PhysicsComponent*> PhysicsComponent::objects;
 PhysicsComponent PhysicsComponent::null;
@@ -16,7 +16,6 @@ PhysicsComponent::PhysicsComponent(float m, vcl::vec3 p, vcl::vec3 v) {
 	position = p;
     nextPosition = p;
 	velocity = v;
-    nextForce = vcl::vec3(0.0f, 0.0f, 0.0f);
 }
 
 PhysicsComponent* PhysicsComponent::generatePhysicsComponent(float m, vcl::vec3 p, vcl::vec3 v) {
@@ -30,13 +29,9 @@ void PhysicsComponent::deleteAllPhysicsCompoenents() {
     objects.resize(0);
 }
 
-void PhysicsComponent::add_force(vcl::vec3 force) {
-    nextForce += force;
-}
-
 vcl::vec3 PhysicsComponent::get_position() {
     float alpha = deltaTimeOffset / fixedDeltaTime;
-    return nextPosition * (1-alpha) + position * alpha;
+    return nextPosition * (1 - alpha) + position * alpha;
 }
 
 vcl::vec3 PhysicsComponent::get_speed() {
@@ -67,13 +62,29 @@ void PhysicsComponent::update(float deltaTime) {
     }
     deltaTimeOffset = timeSpent - deltaTime;
 
-    for (int i = 0; i < objects.size(); i++)
-        objects[i]->nextForce = vcl::vec3(0.0f, 0.0f, 0.0f);
+    if (player != nullptr)
+        player->nextForce = vcl::vec3(0.0f, 0.0f, 0.0f);
 }
 
 void PhysicsComponent::singleUpdate() {
     int n = objects.size();
 
+    // First compute the physics of the camera
+    if (player != nullptr) {
+        player->accel = vcl::vec3(0.0f, 0.0f, 0.0f);
+        for (int j = 0; j < n; j++) {
+            PhysicsComponent* obj = objects[j];
+            float sqrDist = obj->position.x * obj->position.x;
+            sqrDist += obj->position.y * obj->position.y;
+            sqrDist += obj->position.z * obj->position.z;
+            player->accel -= obj->mass / sqrDist * vcl::normalize(-obj->position);
+        }
+        player->accel *= G;
+        player->accel += player->nextForce / player->mass;
+        player->currentSpeed += player->accel * fixedDeltaTime;
+    }
+
+    // Update current position
     for (int i = 0; i < n; i++) {
         objects[i]->position = objects[i]->nextPosition;
     }
@@ -81,6 +92,7 @@ void PhysicsComponent::singleUpdate() {
     if (player != nullptr)
         player->clamp_to_planets();
 
+    // Compute the physics of the other planets
     for (int i = 0; i < n; i++) {
         PhysicsComponent* current = objects[i];
         vcl::vec3 accel = { 0, 0, 0 };
@@ -94,8 +106,15 @@ void PhysicsComponent::singleUpdate() {
             }
         }
         accel *= G;
-        accel += current->nextForce / current->mass;
-        current->velocity += accel * fixedDeltaTime;
-        current->nextPosition = current->position + (current->velocity + current->additionalSpeed) * fixedDeltaTime;
+
+        if (player != nullptr) {
+            accel -= player->accel;
+            current->velocity += accel * fixedDeltaTime;
+            current->nextPosition = current->position + (current->velocity - player->additionalSpeed) * fixedDeltaTime;
+        }
+        else {
+            current->velocity += accel * fixedDeltaTime;
+            current->nextPosition = current->position + current->velocity * fixedDeltaTime;
+        }
     }    
 }
