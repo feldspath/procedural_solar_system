@@ -10,7 +10,7 @@ private:
 	float walkSpeed = 0.5f;
 	float thrustForce = 2000.0f; // Thrust force of the jetpack in N
 	float mass = 100.0f;
-	float height = 0.2f;
+	float height = 0.3f;
 	bool onGround = false;
 
 	int currentPlanet = -1;

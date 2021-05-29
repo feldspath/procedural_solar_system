@@ -104,9 +104,9 @@ GLuint Planet::intermediate_image_bis;
 bool Planet::base_intermediate_image;
 int Planet::nScatteringPoints = 15;
 int Planet::nOpticalDepthPoints = 15;
-float Planet::nearPlane = 0.1f;
-float Planet::interPlane = 100.0f;
-float Planet::farPlane = 10000.0f;
+float Planet::nearPlane;
+float Planet::interPlane;
+float Planet::farPlane;
 
 vec3 Planet::getPlanetRadiusAt(const vec3& posOnUnitSphere) {
     // Continent (simple perlin noise)
@@ -338,8 +338,7 @@ void Planet::startPlanetRendering() {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, intermediate_image, 0);
     base_intermediate_image = true;
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT);
 }
 
 void Planet::switchIntermediateTexture() {

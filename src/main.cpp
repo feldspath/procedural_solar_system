@@ -11,7 +11,7 @@
 
 // 0 is edit mode
 // 1 is explore mode	
-#define CAMERA_TYPE 0
+#define CAMERA_TYPE 1
 
 using namespace vcl;
 
@@ -37,30 +37,22 @@ struct user_interaction_parameters {
 };
 user_interaction_parameters user;
 
-#if CAMERA_TYPE
+
 struct scene_environment
 {
+#if CAMERA_TYPE
 	camera_fps camera;
+#else
+	camera_around_center camera;
+#endif
 	mat4 projection;
-	mat4 projection;
+	mat4 nearProjection;
 	mat4 farProjection;
 	vec3 light;
 	Player player;
 	std::vector<Planet> planets;
 	Skybox skybox;
 };
-#else
-struct scene_environment
-{
-	camera_around_center camera;
-	mat4 projection;
-	mat4 farProjection;
-	mat4 nearProjection;
-	vec3 light;
-	std::vector<Planet> planets;
-	Skybox skybox;
-};
-#endif
 
 scene_environment scene;
 
@@ -74,6 +66,8 @@ void display_interface();
 
 unsigned int SCR_WIDTH = 1280;
 unsigned int SCR_HEIGHT = 1024;
+
+float midDistance = 30.0f;
 
 float previousTime;
 float deltaTime;
@@ -179,7 +173,7 @@ void initialize_data()
 	float sun_mass = (float)3e16;
 
 	#if CAMERA_TYPE
-		scene.camera.position_camera = { 5000, 5, 10};
+		scene.camera.position_camera = { 1000, 500, 0};
 		scene.camera.orientation_camera = rotation();
 		scene.player.bind_camera(&scene.camera);
 		scene.player.init_physics();
@@ -198,7 +192,7 @@ void initialize_data()
 	scene.light = { 0.0f, 0.0f, 0.0f };
 
 	// Other planets
-	scene.planets[1] = Planet("Vulkan", 0.1 / PhysicsComponent::G * 900, &(scene.planets[0]), 1000.0f, rand_interval(0.0f, 2*3.14f), 200);
+	scene.planets[1] = Planet("Vulkan", 0.1 / PhysicsComponent::G * 900, &(scene.planets[0]), 1000.0f, 0.0f, 200);
 	scene.planets[1].waterGlow = true;
 
 	scene.planets[2] = Planet("Oculus", 0.2 / PhysicsComponent::G * 10000, &(scene.planets[0]), 3500.0f, rand_interval(0.0f, 2 * 3.14f), 200);
@@ -206,7 +200,7 @@ void initialize_data()
 	scene.planets[2].atmosphereHeight /= 10.0f;
 	scene.planets[3] = Planet("Scylla", 0.07 / PhysicsComponent::G * 400, &(scene.planets[2]), 300.0f, rand_interval(0.0f, 2 * 3.14f), 200);
 
-	scene.planets[4] = Planet("AethedisPrime", 0.1 / PhysicsComponent::G * 900, &(scene.planets[0]), 5000.0f, rand_interval(0.0f, 2 * 3.14f), 200);
+	scene.planets[4] = Planet("AethedisPrime", 0.1 / PhysicsComponent::G * 900, &(scene.planets[0]), 5000.0f, 0.0f, 200);
 	scene.planets[4].visual.shading.phong.specular = 0.3f;
 
 	scene.planets[5] = Planet("M458", 0.07 / PhysicsComponent::G * 400, &(scene.planets[0]), 7000.0f, rand_interval(0.0f, 2 * 3.14f), 200);
@@ -215,35 +209,40 @@ void initialize_data()
 	planet_index = 1;
 }
 
-void builFrustrsums(float midPlane) {
+void buildFrustrsums(float interPlane) {
+	float farPlane = 10000.0f;
+	float nearPlane = 0.2f;
 	float const aspect = SCR_WIDTH / static_cast<float>(SCR_HEIGHT);
-	scene.farProjection = projection_perspective(pi / 3, aspect, midPlane, 10000.0f);
-	scene.nearProjection = projection_perspective(pi / 3, aspect, 0.1f, midPlane);
-	Planet::interPlane = midPlane;
+	scene.farProjection = projection_perspective(pi / 3, aspect, interPlane, farPlane);
+	scene.nearProjection = projection_perspective(pi / 3, aspect, nearPlane, interPlane);
+	Planet::interPlane = interPlane;
+	Planet::nearPlane = nearPlane;
+	Planet::farPlane = farPlane;
 }
 
 void display_scene() {
 
 	int nearPlanetIndex = -1;
-	float midDistance = 100.0f;
+	
 
 	std::vector<Planet*> farPlanets;
 	// Find the planet close to the player if it exists
 	// Create an adaptative frustrum for the multipass render
 	for (int i = 0; i < scene.planets.size(); i++) {
 		float dist = vcl::norm(scene.planets[i].getPosition() - scene.camera.position());
-		if (dist > midDistance + scene.planets[i].radius * 1.5f || nearPlanetIndex != -1)
+		if (dist > midDistance + scene.planets[i].radius * 1.3f || nearPlanetIndex != -1)
 			farPlanets.push_back(&scene.planets[i]);
 		else {
 			nearPlanetIndex = i;
-			if (dist > midDistance - scene.planets[i].radius * 1.5f)
-				builFrustrsums(midDistance + scene.planets[i].radius * 1.5f);
+			buildFrustrsums(midDistance);
+			if (dist > midDistance - scene.planets[i].radius * 1.3f)
+				buildFrustrsums(midDistance + scene.planets[i].radius * 1.3f);
 			else
-				builFrustrsums(midDistance);
+				buildFrustrsums(midDistance);
 		}
 	}
 	if (nearPlanetIndex == -1)
-		builFrustrsums(midDistance);
+		buildFrustrsums(midDistance);
 
 
 	// Render all the distant planets on the screen
@@ -267,7 +266,7 @@ void display_scene() {
 	}
 	else {
 		Planet::switchIntermediateTexture();
-		farPlanets.back()->renderWater(scene);
+		farPlanets[0]->renderWater(scene);
 		// We now need to render the near planet with the texture as the background.
 		glClear(GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
@@ -295,11 +294,9 @@ void display_interface() {
 
 void window_size_callback(GLFWwindow* , int width, int height) {
 	glViewport(0, 0, width, height);
-	float const aspect = width / static_cast<float>(height);
 	SCR_WIDTH = width;
 	SCR_HEIGHT = height;
-	scene.farProjection = projection_perspective(pi/3, aspect, 100.0f, 10000.0f);
-	scene.nearProjection = projection_perspective(pi/3, aspect, 0.1f, 100.0f);
+	buildFrustrsums(midDistance);
 	Planet::buildTextures(width, height);
 }
 	
