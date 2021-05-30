@@ -10,15 +10,15 @@
 #include "skybox.hpp"
 #include "camera_fps.hpp"
 #include "player.hpp"
+#include "vegetation.hpp"
 
 // 0 is edit mode
 // 1 is explore mode	
-#define CAMERA_TYPE 1
+#define CAMERA_TYPE 0
 
 using namespace vcl;
 
 struct gui_parameters {
-	bool display_frame = false;
 	bool display_wireframe = false;
 };
 
@@ -32,7 +32,6 @@ struct keyboard_state_parameters {
 struct user_interaction_parameters {
 	vec2 mouse_prev;
 	timer_fps fps_record;
-	mesh_drawable global_frame;
 	gui_parameters gui;
 	bool cursor_on_gui;
 	keyboard_state_parameters keyboard_state;
@@ -54,9 +53,13 @@ struct scene_environment
 	Player player;
 	std::vector<Planet> planets;
 	Skybox skybox;
+
+	hierarchy_mesh_drawable plant;
+	buffer<buffer<float>> plantInfos;
 };
 
 scene_environment scene;
+
 
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouse_move_callback(GLFWwindow* window, double xpos, double ypos);
@@ -69,7 +72,12 @@ void display_interface();
 unsigned int SCR_WIDTH = 1280;
 unsigned int SCR_HEIGHT = 1024;
 
+#if CAMERA_TYPE
 float midDistance = 30.0f;
+#else
+float midDistance = 5.0f;
+#endif
+
 int resolution = 500;
 
 float previousTime;
@@ -132,10 +140,10 @@ int main(int, char* argv[])
 			glfwSetWindowTitle(window, title.c_str());
 		}
 
+#if !CAMERA_TYPE
 		ImGui::Begin("GUI",NULL,ImGuiWindowFlags_AlwaysAutoResize);
-		user.cursor_on_gui = ImGui::IsAnyWindowFocused();
-		
-		if(user.gui.display_frame) draw(user.global_frame, scene);
+		user.cursor_on_gui = ImGui::IsAnyWindowFocused();	
+#endif
 
 		display_scene();
 
@@ -143,10 +151,13 @@ int main(int, char* argv[])
 		glBindVertexArray(0);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		
-		display_interface();
 
+#if !CAMERA_TYPE
+		display_interface();
 		ImGui::End();
 		imgui_render_frame(window);
+#endif
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -168,11 +179,8 @@ void initialize_data()
 	mesh_drawable::default_texture = texture_white;
 	curve_drawable::default_shader = shader_uniform_color;
 	segments_drawable::default_shader = shader_uniform_color;	
-	
-	user.global_frame = mesh_drawable(mesh_primitive_frame());
-	user.gui.display_frame = false;
 
-	float sun_mass = (float)3e16;
+	float sun_mass = (float)1e16;
 
 	#if CAMERA_TYPE
 		scene.camera.position_camera = { 0, 0, 0};
@@ -186,24 +194,28 @@ void initialize_data()
 	scene.skybox = Skybox("assets/cubemap.png");
 
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
-	int nPlanets = 7;
+	int nPlanets = 9;
 	scene.planets.resize(nPlanets);
 	// Sun
-	scene.planets[0] = Planet("HeliosStar", sun_mass, { -7000, 70, 0 }, {0, 0, 0}, 50);
+	scene.planets[0] = Planet("HeliosStar", sun_mass, { -2000, 50, 0 }, {0, 0, 0}, 50);
 	scene.planets[0].isSun = true;
-	scene.light = { 0.0f, 0.0f, 0.0f };
 
 	// Other planets
-	scene.planets[1] = Planet("Vulkan", 0.1 / PhysicsComponent::G * 90000, &(scene.planets[0]), 1000.0f, 0.0f, resolution);
+	scene.planets[1] = Planet("Vulkan", 0.13 / PhysicsComponent::G * 90000, &(scene.planets[0]), 1000.0f, rand_interval(0.0f, 2 * 3.14f), resolution);
 	scene.planets[1].waterGlow = true;
 
-	scene.planets[2] = Planet("Oculus", 0.2 / PhysicsComponent::G * 1000000, &(scene.planets[0]), 3500.0f, rand_interval(0.0f, 2 * 3.14f), 50);
-	scene.planets[2].waterLevel /= 10.0f;
-	scene.planets[2].atmosphereHeight /= 10.0f;
-	scene.planets[3] = Planet("Scylla", 0.07 / PhysicsComponent::G * 40000, &(scene.planets[2]), 300.0f, rand_interval(0.0f, 2 * 3.14f), resolution);
+	scene.planets[2] = Planet("Gwen", 0.1 / PhysicsComponent::G * 250000, &(scene.planets[0]), 2000.0f, 0.0f, resolution);
+	scene.planets[2].specularWater = false;
 
-	scene.planets[4] = Planet("AethedisPrime", 0.1 / PhysicsComponent::G * 90000, &(scene.planets[0]), 5000.0f, 0.0f, resolution);
-	scene.planets[4].visual.shading.phong.specular = 0.3f;
+	scene.planets[3] = Planet("Companion", 0.07 / PhysicsComponent::G * 22500, &(scene.planets[2]), 200.0f, 3.14f/2, resolution / 2);
+
+	scene.planets[4] = Planet("Oculus", 0.2 / PhysicsComponent::G * 1000000, &(scene.planets[0]), 3500.0f, rand_interval(0.0f, 2 * 3.14f), 50);
+	scene.planets[4].specularWater = false;
+	scene.planets[5] = Planet("Scylla", 0.07 / PhysicsComponent::G * 40000, &(scene.planets[4]), 300.0f, rand_interval(0.0f, 2 * 3.14f), resolution);
+
+	scene.planets[6] = Planet("AethedisPrime", 0.1 / PhysicsComponent::G * 90000, &(scene.planets[0]), 5000.0f, rand_interval(0.0f, 2 * 3.14f), resolution);
+	scene.planets[6].visual.shading.phong.specular = 0.3f;
+	scene.planets[6].visualLowRes.shading.phong.specular = 0.3f;
 
 	float dualMass = 0.07 / PhysicsComponent::G * 40000;
 	float separation = 130.0f;
@@ -213,8 +225,8 @@ void initialize_data()
 	vcl::vec3 relativeVelocity = std::sqrt(PhysicsComponent::G * dualMass / (2 * separation)) * vcl::vec3(0.0f, 1.0f, 0.0f);
 	vcl::vec3 velocity = std::sqrt(PhysicsComponent::G * sun_mass / sunDistance) * vcl::vec3(0.0f, 1.0f, 0.0f) + scene.planets[0].getSpeed();
 
-	scene.planets[5] = Planet("M458", dualMass, position1, relativeVelocity + velocity, resolution);
-	scene.planets[6] = Planet("EE", dualMass, position2, -relativeVelocity + velocity, resolution);
+	scene.planets[7] = Planet("M458", dualMass, position1, relativeVelocity + velocity, resolution);
+	scene.planets[8] = Planet("EE", dualMass, position2, -relativeVelocity + velocity, resolution);
 
 	
 	std::vector<std::thread> threads(nPlanets);
@@ -228,7 +240,30 @@ void initialize_data()
 		scene.planets[i].updateVisual();
 	}
 
-	planet_index = 5;
+	planet_index = 2;
+
+	createPlant(scene.plant);
+	scene.plantInfos = plantSpawn(5000, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f), 0.5);
+}
+
+void drawPlant(vec3 position, float alpha, float scale) {
+	scene.plant["troncon 0"].transform.translate = scene.planets[2].getPlanetRadiusAt(position) * 0.999f;
+	if (norm(scene.plant["troncon 0"].transform.translate + scene.planets[2].getPosition()) > 15.0f) {
+		return;
+	}
+	vec3 up = position;
+	vec3 ortho = vec3(1.0f, 0.0f, 0.0f);
+	vec3 tempCross = cross(up, ortho);
+	if (norm(tempCross) < 0.01f)
+		return;
+	vec3 right = normalize(tempCross);
+	vec3 back = cross(right, up);
+	mat3 rotationMatrix({back, right, up });
+	scene.plant["troncon 0"].transform.rotate = rotation(up, alpha) * rotation(transpose(rotationMatrix));
+	scene.plant["troncon 0"].transform.scale = scale;
+	scene.plant["troncon 0"].transform = scene.planets[2].visual.transform * scene.plant["troncon 0"].transform;
+	scene.plant.update_local_to_global_coordinates();
+	draw(scene.plant, scene);
 }
 
 void buildFrustrsums(float interPlane) {
@@ -259,42 +294,47 @@ bool operator<(const SortingPlanet& first, const SortingPlanet& second)
 
 
 void display_scene() {
+	plantAnimation(scene.plant, user.fps_record.t * 0.5f);
 
 	scene.light = scene.planets[0].getPosition();
 	
 	// Find the planet close to the player if it exists
 	// Create an adaptative frustrum for the multipass render
 	std::vector<SortingPlanet> farPlanets;
-	int nearPlanetIndex = -1;
+	std::vector<int> nearPlanetIndices;
+	float separatingPlane = midDistance;
 	for (int i = 0; i < scene.planets.size(); i++) {
 		//float dist = vcl::norm(scene.planets[i].getPosition() - scene.camera.position());
 		float dist = vcl::norm(scene.planets[i].getPosition() - scene.camera.position());
-		float changeDist = scene.planets[i].radius * (scene.planets[i].hasAtmosphere ? std::max(scene.planets[i].atmosphereHeight, 1.5f) : 1.5f);
-		if (dist > midDistance + changeDist || nearPlanetIndex != -1 || !CAMERA_TYPE) {
+		float changeDist = scene.planets[i].radius * (scene.planets[i].hasAtmosphere ? std::max(scene.planets[i].atmosphereHeight, 1.3f) : 1.3f);
+		if (dist > separatingPlane + changeDist || !CAMERA_TYPE) {
 			if (dot(scene.camera.front(), scene.planets[i].getPosition()) > 0 || !CAMERA_TYPE)
 				farPlanets.push_back(SortingPlanet(&scene.planets[i], dist));
 		}
 		else {
-			nearPlanetIndex = i;
-			buildFrustrsums(midDistance);
-			if (dist > midDistance - changeDist)
-				buildFrustrsums(midDistance + changeDist);
-			else
-				buildFrustrsums(midDistance);
+			nearPlanetIndices.push_back(i);
+			if (dist > separatingPlane - changeDist)
+				separatingPlane += changeDist;				
 		}
 	}
-	if (nearPlanetIndex == -1)
+
+	if (nearPlanetIndices.empty())
 		buildFrustrsums(midDistance);
+	else {
+		buildFrustrsums(separatingPlane);
+	}
+	
 
 	std::sort(farPlanets.begin(), farPlanets.end());
 
 	// Render all the distant planets on the screen
 	scene.projection = scene.farProjection;
 	Planet::startPlanetRendering();
-	for (int i = 0; i < farPlanets.size(); i++)
+	for (int i = 0; i < farPlanets.size(); i++) {
 		farPlanets[i].pointer->renderPlanet(scene, farPlanets[i].distance > 200.0f);
+	}
 
-	if (farPlanets.size() > 0 || nearPlanetIndex != -1)
+	if (farPlanets.size() > 0 || farPlanets.empty())
 		scene.skybox.render(scene);
 
 	Planet::startWaterRendering(scene, false);
@@ -303,7 +343,7 @@ void display_scene() {
 		farPlanets[i].pointer->renderWater(scene);
 	}
 
-	if (nearPlanetIndex == -1) {
+	if (nearPlanetIndices.empty()) {
 		Planet::renderFinalPlanet();
 		if (farPlanets.size() > 0)
 			farPlanets[0].pointer->renderWater(scene);
@@ -319,18 +359,28 @@ void display_scene() {
 		glClear(GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 		scene.projection = scene.nearProjection;
-		scene.planets[nearPlanetIndex].renderPlanet(scene);
+		for (int i = 0; i < nearPlanetIndices.size(); i++) {
+			scene.planets[nearPlanetIndices[i]].renderPlanet(scene);
+			if (nearPlanetIndices[i] == 2) {
+				for (int j = 0; j < scene.plantInfos[0].size(); j++) {
+					vec3 pos = vcl::vec3(scene.plantInfos[2][j], scene.plantInfos[3][j], scene.plantInfos[4][j]);
+					drawPlant(pos, scene.plantInfos[5][j], scene.plantInfos[9][j] / 4);
+				}
+			}
+		}
+		
 		Planet::startWaterRendering(scene, true);
+		for (int i = 0; i < nearPlanetIndices.size()-1; i++) {
+			Planet::switchIntermediateTexture();
+			scene.planets[nearPlanetIndices[i]].renderWater(scene);
+		}
 		Planet::renderFinalPlanet();
-		scene.planets[nearPlanetIndex].renderWater(scene);
+		scene.planets[nearPlanetIndices.back()].renderWater(scene);
 	}
 }
 
 
 void display_interface() {
-	ImGui::Checkbox("Frame", &user.gui.display_frame);
-	ImGui::Checkbox("Wireframe", &user.gui.display_wireframe);
-
 	float camPos[3] = { scene.light.x, scene.light.y, scene.light.z };
 	ImGui::SliderFloat3("Light position", camPos, 0.0f, 10.0f);
 	scene.light = vec3(camPos[0], camPos[1], camPos[2]);

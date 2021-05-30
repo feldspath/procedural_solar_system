@@ -83,6 +83,7 @@ public:
     // Misc
     bool isSun = false;
     bool waterGlow = false;
+    bool specularWater = true;
 
     static float nearPlane;
     static float interPlane;
@@ -166,6 +167,7 @@ void Planet::renderWater(SCENE const& scene) {
     }
     vcl::opengl_uniform(postProcessingQuad.shader, "isSun", isSun);
     vcl::opengl_uniform(postProcessingQuad.shader, "waterGlow", waterGlow);
+    vcl::opengl_uniform(postProcessingQuad.shader, "specularWater", specularWater);
     
     draw(postProcessingQuad, scene);
 }

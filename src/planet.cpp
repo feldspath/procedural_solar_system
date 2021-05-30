@@ -139,14 +139,14 @@ Planet::Planet(char* name, float mass, vcl::vec3 position, vcl::vec3 velocity, i
     visual.shading.color = { 1.0f, 1.0f, 1.0f };
     visual.shading.phong.specular = 0.0f;
     visual.shading.phong.ambient = 0.01f;
-    visual = mesh_drawable(m, shader);
 
     // Low res planet
     mLowRes = mesh_icosphere(radius, 100);
+    visualLowRes = mesh_drawable(mLowRes, shader);
     visualLowRes.shading.color = { 1.0f, 1.0f, 1.0f };
     visualLowRes.shading.phong.specular = 0.0f;
     visualLowRes.shading.phong.ambient = 0.01f;
-    visualLowRes = mesh_drawable(mLowRes, shader);
+    
     
     std::string path = "planets/" + std::string(name) + ".pbf";
     importFromFile(path.c_str());
@@ -444,7 +444,7 @@ void Planet::displayInterface() {
             ImGui::ColorEdit3("Flat color high", col3);
             flatHighColor = vec3(col3[0], col3[1], col3[2]);
 
-            update |= ImGui::SliderFloat("Max slope", &maxSlope, 0.0f, 3.0f);
+            update |= ImGui::SliderFloat("Max slope", &maxSlope, 0.0f, 10.0f);
 
             ImGui::TreePop();
         }
@@ -502,7 +502,7 @@ void Planet::displayInterface() {
         
         if (ImGui::TreeNode("Atmosphere")) {
             ImGui::Checkbox("Atmosphere", &hasAtmosphere);
-            ImGui::SliderFloat("Atmosphere radius", &atmosphereHeight, 100.0f, 150.0f);
+            ImGui::SliderFloat("Atmosphere radius", &atmosphereHeight, 1.0f, 3.0f);
             ImGui::SliderFloat("Density falloff", &densityFalloff, 0.0f, 10.0f);
             ImGui::SliderInt("Scattering points", &Planet::nScatteringPoints, 0, 20);
             ImGui::SliderInt("Optical depth points", &Planet::nOpticalDepthPoints, 0, 20);
@@ -520,6 +520,8 @@ void Planet::displayInterface() {
         exportToFile(path.c_str());
     }
 
-    if (update)
+    if (update) {
         updatePlanetMesh();
+        updateVisual();
+    }
 }

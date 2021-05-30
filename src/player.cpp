@@ -75,7 +75,7 @@ void Player::clamp_to_planets() {
             break;
         }
         else if (i == currentPlanet) {
-            if (playerHeight > planets->at(i).radius * (planets->at(i).hasAtmosphere ? planets->at(i).atmosphereHeight : 1.5f))
+            if (playerHeight > planets->at(i).radius * (planets->at(i).hasAtmosphere ? std::max(planets->at(i).atmosphereHeight, 1.3f) : 1.3f))
                 currentPlanet = -1;
             else
                 onGround = false;

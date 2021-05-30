@@ -30,6 +30,7 @@ uniform vec3 scatteringCoeffs;
 
 uniform bool isSun;
 uniform bool waterGlow;
+uniform bool specularWater;
 
 
 uniform vec3 lightSource;
@@ -74,7 +75,6 @@ float opticalDepth(vec3 point, vec3 direction, float rayLength, vec3 planetCente
   vec3 samplePoint = point;
   float stepSize = rayLength / (nOpticalDepthPoints - 1);
   float opticalDepth = 0.0;
-
   for (int i = 0; i < nOpticalDepthPoints; i++) {
     opticalDepth += densityAtPoint(samplePoint, planetCenter) * stepSize;
     samplePoint += direction * stepSize;
@@ -142,10 +142,12 @@ void main() {
         specular = pow( max(dot(R,V),0.0), specular_exp );
       }
 
-      if (!waterGlow)
-        FragColor = vec4(color * (diffuse + 0.01)+ vec3(1.0f, 1.0f, 1.0f) * specular * 0.3, 1.0f);
-      else
+      if (waterGlow)
         FragColor = vec4(color, 1.0f);
+      else if (specularWater)
+        FragColor = vec4(color * (diffuse + 0.05)+ vec3(1.0f, 1.0f, 1.0f) * specular * 0.3, 1.0f);
+      else
+        FragColor = vec4(color * (diffuse + 0.05), 1.0f);
       depthFromCamera = dstToOcean;
     }
 
