@@ -29,7 +29,7 @@ add_executable(${executable_name} ${src_files_vcl} ${src_files_third_party} ${sr
 # Set Compiler for Unix system
 if(UNIX)
    set(CMAKE_CXX_COMPILER g++)                      # Can switch to clang++ if prefered
-   add_definitions(-g -O2 -std=c++14 -Wall -Wextra) # Can adapt compiler flags if needed
+   add_definitions(-g -O2 -std=c++14 -Wall -Wextra -pthread) # Can adapt compiler flags if needed
    add_definitions(-Wno-sign-compare -Wno-type-limits) # Remove some warnings
 endif()
 
@@ -44,6 +44,6 @@ endif()
 # Link options for Unix
 target_link_libraries(${executable_name} ${GLFW_LIBRARIES})
 if(UNIX)
-   target_link_libraries(${executable_name} dl) #dlopen is required by Glad on Unix
+   target_link_libraries(${executable_name} dl pthread) #dlopen is required by Glad on Unix
 endif()
 
