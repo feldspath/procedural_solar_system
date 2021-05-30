@@ -44,8 +44,6 @@ mesh mesh_icosphere(float r, unsigned int division) {
 			return generatedIcospheres[i].second;
 	}
 
-	std::cout << "Creating new icosphere with division " << division << std::endl;
-
 	mesh m;
 	int size = 4 * (division + 1) * (division + 1) + 2;
 	int upVertexCount = 2 * (division + 1) * (division + 2);

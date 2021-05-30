@@ -10,7 +10,7 @@
 #include "noises.hpp"
 #include "mesh_drawable_multitexture.hpp"
 
-#define N_THREADS 10
+#define N_THREADS 5
 
 using namespace vcl;
 
@@ -139,6 +139,15 @@ Planet::Planet(char* name, float mass, vcl::vec3 position, vcl::vec3 velocity, i
     visual.shading.color = { 1.0f, 1.0f, 1.0f };
     visual.shading.phong.specular = 0.0f;
     visual.shading.phong.ambient = 0.01f;
+    visual = mesh_drawable(m, shader);
+
+    // Low res planet
+    mLowRes = mesh_icosphere(radius, 100);
+    visualLowRes.shading.color = { 1.0f, 1.0f, 1.0f };
+    visualLowRes.shading.phong.specular = 0.0f;
+    visualLowRes.shading.phong.ambient = 0.01f;
+    visualLowRes = mesh_drawable(mLowRes, shader);
+    
     std::string path = "planets/" + std::string(name) + ".pbf";
     importFromFile(path.c_str());
     //updatePlanetMesh();
@@ -148,6 +157,7 @@ Planet::Planet(char* name, float mass, vcl::vec3 position, vcl::vec3 velocity, i
     image_raw const im = image_load_png("assets/moon_normal_map1.png");
     GLuint const planetTexture = opengl_texture_to_gpu(im, GL_REPEAT, GL_REPEAT);
     visual.texture = planetTexture;
+    visualLowRes.texture = planetTexture;
 
     // Physics
     physics = PhysicsComponent::generatePhysicsComponent(mass, position, velocity);
@@ -206,12 +216,38 @@ void Planet::updatePlanetMesh() {
         threads[i].join();
     }
     m.compute_normal();
+
+    for (int i = 0; i < mLowRes.position.size(); i++) {
+        // Position
+        const vec3 posOnUnitSphere = normalize(mLowRes.position[i]);
+        mLowRes.position[i] = getPlanetRadiusAt(posOnUnitSphere);
+        float height = norm(mLowRes.position[i]);
+
+        // Color
+        float stepSize = 0.02f;
+        vec3 direction;
+        if (std::abs(posOnUnitSphere.z) < 1.0f - 0.00001f)
+            direction = normalize(cross(posOnUnitSphere, vec3(0.0f, 0.0f, 1.0f)));
+        else
+            direction = normalize(cross(posOnUnitSphere, vec3((float)rand() / RAND_MAX, (float)rand() / RAND_MAX, (float)rand() / RAND_MAX)));
+
+        float slopeEstimate = std::abs(norm(getPlanetRadiusAt(normalize(posOnUnitSphere + stepSize * direction))) - height) / stepSize;
+        direction = cross(posOnUnitSphere, direction);
+        slopeEstimate = std::max(slopeEstimate, std::abs(norm(getPlanetRadiusAt(normalize(posOnUnitSphere + stepSize * direction))) - height) / stepSize);
+        float blending = std::min(slopeEstimate / (maxSlope * radius), 1.0f);
+        mLowRes.color[i] = vec3(height / (2 * radius), blending, 0.0f);
+    }
+    mLowRes.compute_normal();
 }
 
 void Planet::updateVisual() {
     visual.update_position(m.position);
     visual.update_normal(m.normal);
     visual.update_color(m.color);
+
+    visualLowRes.update_position(mLowRes.position);
+    visualLowRes.update_normal(mLowRes.normal);
+    visualLowRes.update_color(mLowRes.color);
 }
 
 vcl::vec3 Planet::getPosition() {
@@ -237,6 +273,7 @@ void Planet::setCustomUniforms() {
 void Planet::updateRotation(float deltaTime) {
     vcl::rotation rot({ 0.0f, 0.0f, 1.0f }, deltaTime * rotateSpeed);
     visual.transform.rotate = rot * visual.transform.rotate;
+    visualLowRes.transform.rotate = rot * visualLowRes.transform.rotate;
 }
 
 void Planet::exportToFile(const char* path) {

@@ -5,7 +5,7 @@
 #include "player.hpp"
 
 float const PhysicsComponent::G = (float)6.67430e-11;
-float PhysicsComponent::fixedDeltaTime = 0.005f;
+float PhysicsComponent::fixedDeltaTime = 0.01f;
 float PhysicsComponent::deltaTimeOffset;
 std::vector<PhysicsComponent*> PhysicsComponent::objects;
 PhysicsComponent PhysicsComponent::null;

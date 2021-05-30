@@ -13,7 +13,7 @@
 
 // 0 is edit mode
 // 1 is explore mode	
-#define CAMERA_TYPE 0
+#define CAMERA_TYPE 1
 
 using namespace vcl;
 
@@ -70,6 +70,7 @@ unsigned int SCR_WIDTH = 1280;
 unsigned int SCR_HEIGHT = 1024;
 
 float midDistance = 30.0f;
+int resolution = 500;
 
 float previousTime;
 float deltaTime;
@@ -192,8 +193,6 @@ void initialize_data()
 	scene.planets[0].isSun = true;
 	scene.light = { 0.0f, 0.0f, 0.0f };
 
-	int resolution = 500;
-
 	// Other planets
 	scene.planets[1] = Planet("Vulkan", 0.1 / PhysicsComponent::G * 90000, &(scene.planets[0]), 1000.0f, 0.0f, resolution);
 	scene.planets[1].waterGlow = true;
@@ -262,17 +261,19 @@ bool operator<(const SortingPlanet& first, const SortingPlanet& second)
 void display_scene() {
 
 	scene.light = scene.planets[0].getPosition();
-
-	int nearPlanetIndex = -1;
-	std::vector<SortingPlanet> farPlanets;
+	
 	// Find the planet close to the player if it exists
 	// Create an adaptative frustrum for the multipass render
+	std::vector<SortingPlanet> farPlanets;
+	int nearPlanetIndex = -1;
 	for (int i = 0; i < scene.planets.size(); i++) {
 		//float dist = vcl::norm(scene.planets[i].getPosition() - scene.camera.position());
 		float dist = vcl::norm(scene.planets[i].getPosition() - scene.camera.position());
 		float changeDist = scene.planets[i].radius * (scene.planets[i].hasAtmosphere ? std::max(scene.planets[i].atmosphereHeight, 1.5f) : 1.5f);
-		if (dist > midDistance + changeDist || nearPlanetIndex != -1 || !CAMERA_TYPE)
-			farPlanets.push_back(SortingPlanet(&scene.planets[i], dist));
+		if (dist > midDistance + changeDist || nearPlanetIndex != -1 || !CAMERA_TYPE) {
+			if (dot(scene.camera.front(), scene.planets[i].getPosition()) > 0 || !CAMERA_TYPE)
+				farPlanets.push_back(SortingPlanet(&scene.planets[i], dist));
+		}
 		else {
 			nearPlanetIndex = i;
 			buildFrustrsums(midDistance);
@@ -291,10 +292,10 @@ void display_scene() {
 	scene.projection = scene.farProjection;
 	Planet::startPlanetRendering();
 	for (int i = 0; i < farPlanets.size(); i++)
-		if (i != 2)
-			farPlanets[i].pointer->renderPlanet(scene);
+		farPlanets[i].pointer->renderPlanet(scene, farPlanets[i].distance > 200.0f);
 
-	scene.skybox.render(scene);
+	if (farPlanets.size() > 0 || nearPlanetIndex != -1)
+		scene.skybox.render(scene);
 
 	Planet::startWaterRendering(scene, false);
 	for (int i = farPlanets.size() - 1; i >= 1; i--) {
@@ -304,11 +305,16 @@ void display_scene() {
 
 	if (nearPlanetIndex == -1) {
 		Planet::renderFinalPlanet();
-		farPlanets[0].pointer->renderWater(scene);
+		if (farPlanets.size() > 0)
+			farPlanets[0].pointer->renderWater(scene);
+		else
+			scene.skybox.render(scene);
 	}
 	else {
-		Planet::switchIntermediateTexture();
-		farPlanets[0].pointer->renderWater(scene);
+		if (farPlanets.size() > 0) {
+			Planet::switchIntermediateTexture();
+			farPlanets[0].pointer->renderWater(scene);
+		}
 		// We now need to render the near planet with the texture as the background.
 		glClear(GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);

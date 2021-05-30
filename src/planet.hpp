@@ -14,9 +14,11 @@ private:
 
     // Rendering
     vcl::mesh m;
+    vcl::mesh mLowRes;
 
 public:
     vcl::mesh_drawable visual;
+    vcl::mesh_drawable visualLowRes;
 
 private:
     static GLuint shader;
@@ -106,7 +108,7 @@ public:
     void displayInterface();
     
     void setCustomUniforms();
-    template <typename SCENE> void renderPlanet(SCENE const& scene);
+    template <typename SCENE> void renderPlanet(SCENE const& scene, bool lowRes=false);
     template <typename SCENE> void renderWater(SCENE const& scene);
 
     // Post processing
@@ -129,10 +131,14 @@ public:
 };
 
 template <typename SCENE>
-void Planet::renderPlanet(SCENE const& scene) {
+void Planet::renderPlanet(SCENE const& scene, bool lowRes) {
     setCustomUniforms();
     visual.transform.translate = physics->get_position();
-    vcl::draw(visual, scene);
+    visualLowRes.transform.translate = physics->get_position();
+    if (!lowRes)
+        vcl::draw(visual, scene);
+    else
+        vcl::draw(visualLowRes, scene);
 }
 
 template <typename SCENE>
@@ -182,9 +188,10 @@ void Planet::startWaterRendering(SCENE const& scene, bool nearPlanets) {
         vcl::opengl_uniform(postProcessingQuad.shader, "near", interPlane);
         vcl::opengl_uniform(postProcessingQuad.shader, "far", farPlane);
     }
-
     vcl::opengl_uniform(postProcessingQuad.shader, "nScatteringPoints", nScatteringPoints);
     vcl::opengl_uniform(postProcessingQuad.shader, "nOpticalDepthPoints", nOpticalDepthPoints);
+
+    
 
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 }
