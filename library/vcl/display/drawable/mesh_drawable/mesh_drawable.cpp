@@ -18,7 +18,7 @@ namespace vcl
 		// Sanity check OpenGL
 		opengl_check;
 		// Sanity check before sending mesh data to GPU
-		assert_vcl(mesh_check(data_to_send), "Cannot send this mesh data to GPU");
+		//assert_vcl(mesh_check(data_to_send), "Cannot send this mesh data to GPU");
 
 		// Fill vbo for position
 		opengl_create_gl_buffer_data(GL_ARRAY_BUFFER, vbo["position"], data_to_send.position, draw_type);

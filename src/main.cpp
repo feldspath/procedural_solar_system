@@ -185,26 +185,37 @@ void initialize_data()
 	scene.skybox = Skybox("assets/cubemap.png");
 
     Planet::initPlanetRenderer(SCR_WIDTH, SCR_HEIGHT);
-	int nPlanets = 6;
+	int nPlanets = 7;
 	scene.planets.resize(nPlanets);
 	// Sun
-	scene.planets[0] = Planet("HeliosStar", sun_mass, { -5000, 50, 0 }, {0, 0, 0}, 50);
+	scene.planets[0] = Planet("HeliosStar", sun_mass, { -7000, 70, 0 }, {0, 0, 0}, 50);
 	scene.planets[0].isSun = true;
 	scene.light = { 0.0f, 0.0f, 0.0f };
 
+	int resolution = 500;
+
 	// Other planets
-	scene.planets[1] = Planet("Vulkan", 0.1 / PhysicsComponent::G * 90000, &(scene.planets[0]), 1000.0f, 0.0f, 500);
+	scene.planets[1] = Planet("Vulkan", 0.1 / PhysicsComponent::G * 90000, &(scene.planets[0]), 1000.0f, 0.0f, resolution);
 	scene.planets[1].waterGlow = true;
 
 	scene.planets[2] = Planet("Oculus", 0.2 / PhysicsComponent::G * 1000000, &(scene.planets[0]), 3500.0f, rand_interval(0.0f, 2 * 3.14f), 50);
 	scene.planets[2].waterLevel /= 10.0f;
 	scene.planets[2].atmosphereHeight /= 10.0f;
-	scene.planets[3] = Planet("Scylla", 0.07 / PhysicsComponent::G * 40000, &(scene.planets[2]), 300.0f, rand_interval(0.0f, 2 * 3.14f), 500);
+	scene.planets[3] = Planet("Scylla", 0.07 / PhysicsComponent::G * 40000, &(scene.planets[2]), 300.0f, rand_interval(0.0f, 2 * 3.14f), resolution);
 
-	scene.planets[4] = Planet("AethedisPrime", 0.1 / PhysicsComponent::G * 90000, &(scene.planets[0]), 5000.0f, 0.0f, 500);
+	scene.planets[4] = Planet("AethedisPrime", 0.1 / PhysicsComponent::G * 90000, &(scene.planets[0]), 5000.0f, 0.0f, resolution);
 	scene.planets[4].visual.shading.phong.specular = 0.3f;
 
-	scene.planets[5] = Planet("M458", 0.07 / PhysicsComponent::G * 40000, &(scene.planets[0]), 7000.0f, rand_interval(0.0f, 2 * 3.14f), 500);
+	float dualMass = 0.07 / PhysicsComponent::G * 40000;
+	float separation = 130.0f;
+	float sunDistance = 7000.0f;
+	vcl::vec3 position1 = scene.planets[0].getPosition() + sunDistance * vcl::vec3(1.0f, 0.0f, 0.0f);
+	vcl::vec3 position2 = scene.planets[0].getPosition() + (sunDistance - separation) * vcl::vec3(1.0f, 0.0f, 0.0f);
+	vcl::vec3 relativeVelocity = std::sqrt(PhysicsComponent::G * dualMass / (2 * separation)) * vcl::vec3(0.0f, 1.0f, 0.0f);
+	vcl::vec3 velocity = std::sqrt(PhysicsComponent::G * sun_mass / sunDistance) * vcl::vec3(0.0f, 1.0f, 0.0f) + scene.planets[0].getSpeed();
+
+	scene.planets[5] = Planet("M458", dualMass, position1, relativeVelocity + velocity, resolution);
+	scene.planets[6] = Planet("EE", dualMass, position2, -relativeVelocity + velocity, resolution);
 
 	
 	std::vector<std::thread> threads(nPlanets);
@@ -218,7 +229,7 @@ void initialize_data()
 		scene.planets[i].updateVisual();
 	}
 
-	planet_index = 1;
+	planet_index = 5;
 }
 
 void buildFrustrsums(float interPlane) {

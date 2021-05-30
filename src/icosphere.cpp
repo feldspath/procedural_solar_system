@@ -2,6 +2,8 @@
 
 using namespace vcl;
 
+static std::vector<std::pair<int, mesh>> generatedIcospheres;
+
 static void generateFaceVertex(vec3 v0, vec3 v1, vec3 v2, int division, vcl::buffer<vcl::vec3>& positions, vcl::buffer<vcl::uint3>& connectivity, int& count, int* base, int* lastVertices) {
 	for (int j = 0; j < division + 1; j++) {
 		double ky = (double)j / (division + 1);
@@ -36,6 +38,14 @@ static void generateFaceVertex(vec3 v0, vec3 v1, vec3 v2, int division, vcl::buf
 }
 
 mesh mesh_icosphere(float r, unsigned int division) {
+
+	for (int i = 0; i < generatedIcospheres.size(); i++) {
+		if (generatedIcospheres[i].first == division)
+			return generatedIcospheres[i].second;
+	}
+
+	std::cout << "Creating new icosphere with division " << division << std::endl;
+
 	mesh m;
 	int size = 4 * (division + 1) * (division + 1) + 2;
 	int upVertexCount = 2 * (division + 1) * (division + 2);
@@ -100,5 +110,7 @@ mesh mesh_icosphere(float r, unsigned int division) {
 	assert_vcl(count == size, "Wrong vertex count creating the sphere");
 
 	m.fill_empty_field();
+
+	generatedIcospheres.push_back(std::pair<int, mesh>(division, m));
 	return m;
 }

@@ -2,12 +2,15 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <thread>
 
 #include "planet.hpp"
 #include "icosphere.hpp"
 #include "vcl/vcl.hpp"
 #include "noises.hpp"
 #include "mesh_drawable_multitexture.hpp"
+
+#define N_THREADS 10
 
 using namespace vcl;
 
@@ -158,12 +161,8 @@ Planet::Planet(char* name, float mass, Planet* parent, float distanceToParent, f
 
 
 
-void Planet::updatePlanetMesh() {
-    continentParameters.octave = (int)continentParameters.octave;
-    mountainsParameters.octave = (int)mountainsParameters.octave;
-    maskParameters.octave = (int)maskParameters.octave;
-
-    for (int i = 0; i < (int)m.position.size(); i++) {
+void Planet::updateFragmentMesh(vcl::uint2 division) {
+    for (int i = division.x; i < division.y; i++) {
         // Position
         const vec3 posOnUnitSphere = normalize(m.position[i]);
         m.position[i] = getPlanetRadiusAt(posOnUnitSphere);
@@ -176,13 +175,35 @@ void Planet::updatePlanetMesh() {
             direction = normalize(cross(posOnUnitSphere, vec3(0.0f, 0.0f, 1.0f)));
         else
             direction = normalize(cross(posOnUnitSphere, vec3((float)rand() / RAND_MAX, (float)rand() / RAND_MAX, (float)rand() / RAND_MAX)));
-        
-        float slopeEstimate = std::abs(norm(getPlanetRadiusAt(normalize(posOnUnitSphere + stepSize * direction))) - height)/stepSize ;
+
+        float slopeEstimate = std::abs(norm(getPlanetRadiusAt(normalize(posOnUnitSphere + stepSize * direction))) - height) / stepSize;
         direction = cross(posOnUnitSphere, direction);
         slopeEstimate = std::max(slopeEstimate, std::abs(norm(getPlanetRadiusAt(normalize(posOnUnitSphere + stepSize * direction))) - height) / stepSize);
         float blending = std::min(slopeEstimate / (maxSlope * radius), 1.0f);
-        m.color[i] = vec3(height/(2*radius), blending, 0.0f);
+        m.color[i] = vec3(height / (2 * radius), blending, 0.0f);
+    }
+}
 
+
+
+void Planet::updatePlanetMesh() {
+    continentParameters.octave = (int)continentParameters.octave;
+    mountainsParameters.octave = (int)mountainsParameters.octave;
+    maskParameters.octave = (int)maskParameters.octave;
+
+    int size = (int)m.position.size();
+    int divisionSize = size / N_THREADS;
+    std::vector<std::thread> threads(N_THREADS);
+    int index = 0;
+    for (int i = 0; i < N_THREADS; i++) {
+        vcl::uint2 division;
+        division.x = index;
+        division.y = (i == N_THREADS-1 ? size : index + divisionSize);
+        index = division.y;
+        threads[i] = std::thread(&Planet::updateFragmentMesh, this, division);
+    }
+    for (int i = 0; i < N_THREADS; i++) {
+        threads[i].join();
     }
     m.compute_normal();
 }
