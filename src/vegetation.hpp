@@ -1,3 +1,5 @@
+#pragma once
+
 #include "vcl/vcl.hpp"
 
 void createPlant(vcl::hierarchy_mesh_drawable& hierarchy);

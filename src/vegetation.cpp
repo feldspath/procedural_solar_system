@@ -1,4 +1,5 @@
 #include "vcl/vcl.hpp"
+#include "vegetation.hpp"
 
 using namespace vcl;
 
