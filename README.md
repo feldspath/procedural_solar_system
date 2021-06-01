@@ -1,4 +1,4 @@
-#INF443 Project: a proceduraly generated solar system.
+# INF443 Project: a proceduraly generated solar system.
 
 Author: Marius Debussche and Lilian Bichot
 
