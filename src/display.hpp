@@ -5,7 +5,7 @@
 #include "player.hpp"
 #include "skybox.hpp"
 
-#define CAMERA_TYPE 0
+#define CAMERA_TYPE 1
 // 0 is edit mode
 // 1 is explore mode
 
@@ -30,20 +30,20 @@ static float midDistance = 5.0f;
 struct scene_environment
 {
 #if CAMERA_TYPE
-	camera_fps camera;
+    camera_fps camera;
 #else
-	vcl::camera_around_center camera;
+    vcl::camera_around_center camera;
 #endif
-	vcl::mat4 projection;
-	vcl::mat4 nearProjection;
-	vcl::mat4 farProjection;
-	vcl::vec3 light;
-	Player player;
-	std::vector<Planet> planets;
-	Skybox skybox;
+    vcl::mat4 projection;
+    vcl::mat4 nearProjection;
+    vcl::mat4 farProjection;
+    vcl::vec3 light;
+    Player player;
+    std::vector<Planet> planets;
+    Skybox skybox;
 
-	vcl::hierarchy_mesh_drawable plant;
-	vcl::buffer<vcl::buffer<float>> plantInfos;
+    vcl::hierarchy_mesh_drawable plant;
+    vcl::buffer<vcl::buffer<float>> plantInfos;
 };
 
 void buildFrustrsums(scene_environment& scene, unsigned int width, unsigned int height, float interPlane = midDistance);
